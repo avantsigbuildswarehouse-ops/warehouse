@@ -24,9 +24,9 @@ export default async function ProtectedLayout({
   const role = profile?.role ?? null;
 
   return (
-    <div className="flex">
+    <div className="flex min-h-screen bg-transparent">
       <Sidebar role={role} />
-      <div className="flex-1">{children}</div>
+      <main className="flex-1 overflow-x-hidden">{children}</main>
     </div>
   );
 }
