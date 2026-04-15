@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import type { ComponentType } from "react";
 import {
   Archive,
+  Building,
+  Building2,
   DoorOpen,
   LayoutDashboard,
   Shield,
@@ -12,6 +15,7 @@ import {
 } from "lucide-react";
 
 import LogoutButton from "./logout-button";
+import { ThemeToggle } from "./theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
@@ -33,7 +37,8 @@ function getNavItems(role: string): NavItem[] {
       { href: "/admin", label: "Admin Home", icon: Shield, exact: true },
       { href: "/admin/Inventory", label: "Vehicle Inventory", icon: Archive },
       { href: "/admin/Spares", label: "Spare Inventory", icon: Users },
-      { href: "/frontdesk", label: "Front Desk", icon: DoorOpen },
+      { href: "/admin/Showroom", label: "Showrooms", icon: Building },
+      { href: "/admin/Dealers", label: "Dealers", icon: Building2 },
     ];
   }
 
@@ -59,29 +64,40 @@ export default function Sidebar({ role }: Props) {
   const navItems = getNavItems(role);
 
   return (
-    <div className="sticky top-0 flex h-screen w-72 flex-col justify-between border-r border-slate-200 bg-[linear-gradient(180deg,#fcfdff_0%,#eef6ff_55%,#f4fbf8_100%)] p-4">
+    <div className="sticky top-0 z-20 flex h-screen w-72 flex-col justify-between border-r border-slate-200 bg-slate-50 p-4 transition-colors dark:border-white/10 dark:bg-[#080B14]">
       <div className="flex flex-col gap-6">
-        <div className="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-[linear-gradient(160deg,rgba(59,130,246,0.16),rgba(45,212,191,0.14),rgba(255,255,255,0.94))] p-4 shadow-sm">
-          <div className="absolute inset-x-0 top-0 h-20 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.75),transparent_70%)]" />
-          <div className="relative flex flex-col gap-1">
-            <h1 className="text-xl font-bold tracking-tight text-slate-950">
-              Warehouse Hub
-            </h1>
-            <p className="text-sm text-slate-600">
-              {role === "admin"
-                ? "Catalog, stock, and intake control"
-                : "Workspace navigation"}
-            </p>
-
-            <Badge className="mt-2 w-fit bg-slate-950 text-white hover:bg-slate-950">
-              {role.toUpperCase()}
-            </Badge>
+        
+        {/* Brand Area */}
+        <div className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/40 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+          <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.8),transparent_70%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_70%)]" />
+          <div className="relative flex flex-col items-start gap-4">
+            
+            <Image 
+              src="/avantbg.png" 
+              alt="Avant Logo" 
+              width={140} 
+              height={40} 
+              className="object-contain drop-shadow-sm dark:invert"
+              priority
+            />
+            
+            <div className="space-y-2 w-full">
+              <Badge className="w-fit bg-slate-900 text-white hover:bg-slate-800 dark:bg-sky-500/20 dark:text-sky-300 dark:hover:bg-sky-500/30 dark:border-sky-500/30 border-transparent transition-colors">
+                {role.toUpperCase()} WORKSPACE
+              </Badge>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">
+                {role === "admin"
+                  ? "Full inventory & access control"
+                  : "Daily operations center"}
+              </p>
+            </div>
           </div>
         </div>
 
-        <Separator />
+        <Separator className="bg-slate-200/60 dark:bg-slate-800" />
 
-        <nav className="flex flex-col gap-2">
+        {/* Navigation */}
+        <nav className="flex flex-col gap-1.5">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.exact
@@ -93,13 +109,19 @@ export default function Sidebar({ role }: Props) {
                 key={item.href}
                 href={item.href}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl border px-3 py-2 text-sm font-medium transition",
+                  "group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold transition-all duration-200",
                   isActive
-                    ? "border-sky-400/50 bg-[linear-gradient(135deg,#2563eb,#0f172a)] text-white shadow-[0_10px_30px_rgba(37,99,235,0.25)]"
-                    : "border-transparent text-slate-700 hover:border-slate-200 hover:bg-white/80"
+                    ? "bg-white text-sky-600 shadow-sm ring-1 ring-slate-200/50 dark:bg-sky-500/10 dark:text-sky-400 dark:ring-sky-500/20 dark:shadow-none"
+                    : "text-slate-600 hover:bg-white/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-200"
                 )}
               >
-                <Icon size={18} />
+                <Icon 
+                  size={18} 
+                  className={cn(
+                    "transition-transform duration-200 group-hover:scale-110",
+                    isActive ? "text-sky-600 dark:text-sky-400" : "text-slate-400 dark:text-slate-500"
+                  )} 
+                />
                 {item.label}
               </Link>
             );
@@ -107,8 +129,14 @@ export default function Sidebar({ role }: Props) {
         </nav>
       </div>
 
-      <div className="rounded-2xl border border-slate-200/80 bg-white/70 p-3 shadow-sm backdrop-blur">
-        <LogoutButton />
+      {/* Footer Area */}
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <div className="flex-1 rounded-xl border border-slate-200/80 bg-white/70 p-1 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">
+            <LogoutButton />
+          </div>
+        </div>
       </div>
     </div>
   );

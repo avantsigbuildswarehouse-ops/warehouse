@@ -260,18 +260,18 @@ export default function SparesInventory() {
   }, [inventory.items, modelCode, spareCode]);
 
   return (
-    <div className="min-h-full bg-[linear-gradient(180deg,#f8fafc_0%,#eef5f1_100%)]">
+    <div className="min-h-full bg-slate-50 transition-colors dark:bg-[#080B14]">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-sm">
-          <Badge variant="outline" className="w-fit border-slate-300">
+        <div className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-white/10 dark:bg-slate-900/60">
+          <Badge variant="outline" className="w-fit border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 text-slate-700 bg-slate-50">
             Admin spare control
           </Badge>
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-1">
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
                 Spare inventory
               </h1>
-              <p className="max-w-3xl text-sm text-slate-600">
+              <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-400">
                 Keep the spare catalog organized by model, add serial-tracked
                 stock, and review every available unit from the admin workspace.
               </p>
@@ -296,30 +296,30 @@ export default function SparesInventory() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-slate-200/80 bg-white/90 shadow-sm">
+          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
             <CardHeader>
-              <CardDescription>Serial-tracked spare units</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-3xl">
+              <CardDescription className="dark:text-slate-400">Serial-tracked spare units</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-3xl dark:text-white">
                 <PackagePlus className="size-5 text-slate-500" />
                 {formatNumber(inventory.summary.totalUnits)}
               </CardTitle>
             </CardHeader>
           </Card>
 
-          <Card className="border-slate-200/80 bg-white/90 shadow-sm">
+          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
             <CardHeader>
-              <CardDescription>Spare codes in use</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-3xl">
+              <CardDescription className="dark:text-slate-400">Spare codes in use</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-3xl dark:text-white">
                 <Wrench className="size-5 text-slate-500" />
                 {formatNumber(inventory.summary.totalSpareTypes)}
               </CardTitle>
             </CardHeader>
           </Card>
 
-          <Card className="border-slate-200/80 bg-white/90 shadow-sm">
+          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
             <CardHeader>
-              <CardDescription>Listed spare value</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-3xl">
+              <CardDescription className="dark:text-slate-400">Listed spare value</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-3xl dark:text-white">
                 <CircleDollarSign className="size-5 text-slate-500" />
                 {formatNumber(inventory.summary.totalValue)}
               </CardTitle>
@@ -328,10 +328,10 @@ export default function SparesInventory() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
-          <Card className="border-slate-200/80 bg-white/90 shadow-sm">
+          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
             <CardHeader>
-              <CardTitle>Add spare stock</CardTitle>
-              <CardDescription>
+              <CardTitle className="dark:text-white">Add spare stock</CardTitle>
+              <CardDescription className="dark:text-slate-400">
                 Pick a bike model, choose a spare code, then register each new
                 serial number in one submission.
               </CardDescription>
@@ -343,7 +343,7 @@ export default function SparesInventory() {
                   <Label htmlFor="spare-model">Vehicle model</Label>
                   <select
                     id="spare-model"
-                    className="h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
+                    className="h-11 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-slate-950/60 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-sky-400 dark:focus:bg-slate-900"
                     value={modelCode}
                     onChange={(event) => {
                       setValue("modelCode", event.target.value, {
@@ -390,7 +390,7 @@ export default function SparesInventory() {
                   <div className="flex flex-col gap-3 md:flex-row">
                     <select
                       id="spare-code"
-                      className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
+                      className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-slate-950/60 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-sky-400 dark:focus:bg-slate-900"
                       value={spareCode}
                       onChange={(event) =>
                         setValue("spareCode", event.target.value, {
@@ -430,28 +430,28 @@ export default function SparesInventory() {
                 </div>
 
                 {selectedSpare ? (
-                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-3">
+                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-3 dark:border-white/10 dark:bg-slate-800/40">
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Spare code
                       </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
                         {selectedSpare.spare_code}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Unit price
                       </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
                         {formatNumber(Number(selectedSpare.price ?? 0))}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Current stock
                       </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
                         {formatNumber(Number(selectedSpare.quantity ?? 0))}
                       </p>
                     </div>
@@ -535,10 +535,10 @@ export default function SparesInventory() {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200/80 bg-white/90 shadow-sm">
+          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
             <CardHeader>
-              <CardTitle>Spare catalog</CardTitle>
-              <CardDescription>
+              <CardTitle className="dark:text-white">Spare catalog</CardTitle>
+              <CardDescription className="dark:text-slate-400">
                 {modelCode
                   ? "Catalog entries for the selected model."
                   : "Select a model to inspect the spare catalog."}
@@ -547,35 +547,35 @@ export default function SparesInventory() {
 
             <CardContent className="space-y-3">
               {!modelCode ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+                <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   Choose a model to load available spare codes.
                 </div>
               ) : spares.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+                <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   No spare codes found for this model yet.
                 </div>
               ) : (
                 spares.map((spare) => (
                   <div
                     key={spare.spare_code}
-                    className="rounded-2xl border border-slate-200 p-4"
+                    className="rounded-2xl border border-slate-200 p-4 dark:border-white/10 dark:bg-slate-800/30"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-slate-950">
+                        <p className="font-semibold text-slate-950 dark:text-white">
                           {spare.spare_name}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
                           {spare.spare_code}
                         </p>
                       </div>
 
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="dark:border-white/10 dark:bg-slate-900">
                         {formatNumber(Number(spare.quantity ?? 0))} in stock
                       </Badge>
                     </div>
 
-                    <p className="mt-3 text-sm text-slate-600">
+                    <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
                       Listed price: {formatNumber(Number(spare.price ?? 0))}
                     </p>
                   </div>
@@ -585,10 +585,10 @@ export default function SparesInventory() {
           </Card>
         </div>
 
-        <Card className="border-slate-200/80 bg-white/90 shadow-sm">
+        <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
           <CardHeader>
-            <CardTitle>Spare unit details</CardTitle>
-            <CardDescription>
+            <CardTitle className="dark:text-white">Spare unit details</CardTitle>
+            <CardDescription className="dark:text-slate-400">
               {selectedSpare
                 ? `Showing serials for ${selectedSpare.spare_name}.`
                 : modelCode
@@ -599,18 +599,18 @@ export default function SparesInventory() {
 
           <CardContent>
             {loadingInventory ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 Loading spare inventory...
               </div>
             ) : visibleInventory.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 No spare inventory found for the current selection.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full border-separate border-spacing-y-2 text-sm">
                   <thead>
-                    <tr className="text-left text-slate-500">
+                    <tr className="text-left text-slate-500 dark:text-slate-400">
                       <th className="px-3 py-2 font-medium">Model</th>
                       <th className="px-3 py-2 font-medium">Spare</th>
                       <th className="px-3 py-2 font-medium">Serial</th>
@@ -622,26 +622,26 @@ export default function SparesInventory() {
                     {visibleInventory.map((item) => (
                       <tr
                         key={`${item.spare_code}-${item.serial_number}`}
-                        className="bg-slate-50 text-slate-700"
+                        className="bg-slate-50 text-slate-700 transition hover:bg-slate-100 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:bg-slate-800/70"
                       >
                         <td className="rounded-l-2xl px-3 py-3 align-top">
-                          <p className="font-semibold text-slate-900">
+                          <p className="font-semibold text-slate-900 dark:text-white">
                             {item.model_name}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             {item.model_code}
                           </p>
                         </td>
                         <td className="px-3 py-3 align-top">
-                          <p className="font-semibold text-slate-900">
+                          <p className="font-semibold text-slate-900 dark:text-white">
                             {item.spare_name}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             {item.spare_code}
                           </p>
                         </td>
                         <td className="px-3 py-3">{item.serial_number}</td>
-                        <td className="px-3 py-3 font-medium text-slate-900">
+                        <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">
                           {formatNumber(item.price)}
                         </td>
                         <td className="rounded-r-2xl px-3 py-3">

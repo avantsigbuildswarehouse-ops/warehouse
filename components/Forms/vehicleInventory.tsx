@@ -211,18 +211,18 @@ export default function VehicleInventoryForm() {
   }, [inventory.items, selectedModel]);
 
   return (
-    <div className="min-h-full bg-[linear-gradient(180deg,#f7f9fc_0%,#eef3f8_100%)]">
+    <div className="min-h-full bg-slate-50 transition-colors dark:bg-[#080B14]">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
-        <div className="flex flex-col gap-3 rounded-3xl border border-slate-200/80 bg-white/90 p-6 shadow-sm">
-          <Badge variant="outline" className="w-fit border-slate-300">
+        <div className="flex flex-col gap-3 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm transition-colors dark:border-white/10 dark:bg-slate-900/60">
+          <Badge variant="outline" className="w-fit border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 text-slate-700 bg-slate-50">
             Admin inventory control
           </Badge>
           <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-1">
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-950">
+              <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">
                 Vehicle inventory
               </h1>
-              <p className="max-w-3xl text-sm text-slate-600">
+              <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-400">
                 Add incoming bikes, review the full stock list, and keep model
                 quantities in sync from one place.
               </p>
@@ -241,30 +241,30 @@ export default function VehicleInventoryForm() {
         </div>
 
         <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-slate-200/80 bg-white/90 shadow-sm">
+          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
             <CardHeader>
-              <CardDescription>Total bikes in stock</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-3xl">
+              <CardDescription className="dark:text-slate-400">Total bikes in stock</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-3xl dark:text-white">
                 <Bike className="size-5 text-slate-500" />
                 {formatNumber(inventory.summary.totalUnits)}
               </CardTitle>
             </CardHeader>
           </Card>
 
-          <Card className="border-slate-200/80 bg-white/90 shadow-sm">
+          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
             <CardHeader>
-              <CardDescription>Active bike models</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-3xl">
+              <CardDescription className="dark:text-slate-400">Active bike models</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-3xl dark:text-white">
                 <Boxes className="size-5 text-slate-500" />
                 {formatNumber(inventory.summary.totalModels)}
               </CardTitle>
             </CardHeader>
           </Card>
 
-          <Card className="border-slate-200/80 bg-white/90 shadow-sm">
+          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
             <CardHeader>
-              <CardDescription>Listed inventory value</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-3xl">
+              <CardDescription className="dark:text-slate-400">Listed inventory value</CardDescription>
+              <CardTitle className="flex items-center gap-2 text-3xl dark:text-white">
                 <CircleDollarSign className="size-5 text-slate-500" />
                 {formatNumber(inventory.summary.totalValue)}
               </CardTitle>
@@ -273,10 +273,10 @@ export default function VehicleInventoryForm() {
         </div>
 
         <div className="grid gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(320px,0.7fr)]">
-          <Card className="border-slate-200/80 bg-white/90 shadow-sm">
+          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
             <CardHeader>
-              <CardTitle>Add bikes to inventory</CardTitle>
-              <CardDescription>
+              <CardTitle className="dark:text-white">Add bikes to inventory</CardTitle>
+              <CardDescription className="dark:text-slate-400">
                 Choose a model, enter each unit&apos;s unique details, then save
                 them in a single batch.
               </CardDescription>
@@ -289,7 +289,7 @@ export default function VehicleInventoryForm() {
                   <div className="flex flex-col gap-3 md:flex-row">
                     <select
                       id="modelCode"
-                      className="h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none ring-0 transition focus:border-slate-400"
+                      className="h-11 rounded-xl border border-slate-200 bg-white px-4 text-sm font-medium text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-slate-950/60 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-sky-400 dark:focus:bg-slate-900"
                       value={selectedModel}
                       disabled={loadingModels}
                       onChange={(event) =>
@@ -323,28 +323,28 @@ export default function VehicleInventoryForm() {
                 </div>
 
                 {selectedModelData ? (
-                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-3">
+                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-3 dark:border-white/10 dark:bg-slate-800/40">
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Model code
                       </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
                         {selectedModelData.model_code}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Unit price
                       </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
                         {formatNumber(Number(selectedModelData.price ?? 0))}
                       </p>
                     </div>
                     <div>
-                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500">
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Current stock
                       </p>
-                      <p className="mt-1 text-sm font-semibold text-slate-900">
+                      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
                         {formatNumber(Number(selectedModelData.quantity ?? 0))}
                       </p>
                     </div>
@@ -355,7 +355,7 @@ export default function VehicleInventoryForm() {
                   {fields.map((field, index) => (
                     <div
                       key={field.id}
-                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-slate-800/20"
                     >
                       <div className="mb-4 flex items-center justify-between">
                         <div>
@@ -487,41 +487,41 @@ export default function VehicleInventoryForm() {
             </CardContent>
           </Card>
 
-          <Card className="border-slate-200/80 bg-white/90 shadow-sm">
+          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
             <CardHeader>
-              <CardTitle>Available models</CardTitle>
-              <CardDescription>
+              <CardTitle className="dark:text-white">Available models</CardTitle>
+              <CardDescription className="dark:text-slate-400">
                 Stock-ready vehicle models visible to admin users.
               </CardDescription>
             </CardHeader>
 
             <CardContent className="space-y-3">
               {models.length === 0 ? (
-                <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+                <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                   No models available yet.
                 </div>
               ) : (
                 models.map((model) => (
                   <div
                     key={model.model_code}
-                    className="rounded-2xl border border-slate-200 p-4"
+                    className="rounded-2xl border border-slate-200 p-4 dark:border-white/10 dark:bg-slate-800/30"
                   >
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-slate-950">
+                        <p className="font-semibold text-slate-950 dark:text-white">
                           {model.model_name}
                         </p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
                           {model.model_code}
                         </p>
                       </div>
 
-                      <Badge variant="outline">
+                      <Badge variant="outline" className="dark:border-white/10 dark:bg-slate-900">
                         {formatNumber(Number(model.quantity ?? 0))} in stock
                       </Badge>
                     </div>
 
-                    <p className="mt-3 text-sm text-slate-600">
+                    <p className="mt-3 text-sm text-slate-600 dark:text-slate-400">
                       Listed price: {formatNumber(Number(model.price ?? 0))}
                     </p>
                   </div>
@@ -531,10 +531,10 @@ export default function VehicleInventoryForm() {
           </Card>
         </div>
 
-        <Card className="border-slate-200/80 bg-white/90 shadow-sm">
+        <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
           <CardHeader>
-            <CardTitle>Bike details in stock</CardTitle>
-            <CardDescription>
+            <CardTitle className="dark:text-white">Bike details in stock</CardTitle>
+            <CardDescription className="dark:text-slate-400">
               {selectedModelData
                 ? `Showing bikes for ${selectedModelData.model_name}.`
                 : "Showing all bikes currently stored in inventory."}
@@ -543,18 +543,18 @@ export default function VehicleInventoryForm() {
 
           <CardContent>
             {loadingInventory ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 Loading inventory...
               </div>
             ) : visibleInventory.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">
+              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
                 No bikes found for the current selection.
               </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full border-separate border-spacing-y-2 text-sm">
                   <thead>
-                    <tr className="text-left text-slate-500">
+                    <tr className="text-left text-slate-500 dark:text-slate-400">
                       <th className="px-3 py-2 font-medium">Model</th>
                       <th className="px-3 py-2 font-medium">Engine</th>
                       <th className="px-3 py-2 font-medium">Chassis</th>
@@ -568,13 +568,13 @@ export default function VehicleInventoryForm() {
                     {visibleInventory.map((item) => (
                       <tr
                         key={`${item.engine_number}-${item.chassis_number}`}
-                        className="rounded-2xl bg-slate-50 text-slate-700"
+                        className="rounded-2xl bg-slate-50 text-slate-700 transition hover:bg-slate-100 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:bg-slate-800/70"
                       >
                         <td className="rounded-l-2xl px-3 py-3 align-top">
-                          <p className="font-semibold text-slate-900">
+                          <p className="font-semibold text-slate-900 dark:text-white">
                             {item.model_name}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             {item.model_code}
                           </p>
                         </td>
@@ -583,7 +583,7 @@ export default function VehicleInventoryForm() {
                         <td className="px-3 py-3">{item.color}</td>
                         <td className="px-3 py-3">{item.yom}</td>
                         <td className="px-3 py-3">{item.version}</td>
-                        <td className="rounded-r-2xl px-3 py-3 font-medium text-slate-900">
+                        <td className="rounded-r-2xl px-3 py-3 font-medium text-slate-900 dark:text-white">
                           {formatNumber(item.price)}
                         </td>
                       </tr>

@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/client";
 
+import Image from "next/image";
+
 export default function LoginPage() {
   const router = useRouter();
   const supabase = createClient();
@@ -64,64 +66,47 @@ export default function LoginPage() {
     else router.replace("/dashboard");
   }
 
+
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden px-4 py-10">
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.18),transparent_26rem),radial-gradient(circle_at_bottom_right,rgba(45,212,191,0.18),transparent_24rem)]" />
-      <div className="absolute left-10 top-10 h-28 w-28 rounded-full bg-sky-300/20 blur-3xl" />
-      <div className="absolute bottom-8 right-10 h-32 w-32 rounded-full bg-teal-300/20 blur-3xl" />
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-slate-50 px-4 py-10 transition-colors dark:bg-[#080B14]">
+      {/* Background Orbs */}
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.1),transparent_35rem),radial-gradient(circle_at_bottom_right,rgba(45,212,191,0.1),transparent_35rem)] dark:bg-[radial-gradient(circle_at_top_left,rgba(59,130,246,0.08),transparent_35rem),radial-gradient(circle_at_bottom_right,rgba(20,184,166,0.08),transparent_35rem)]" />
+      <div className="absolute left-10 top-10 h-64 w-64 rounded-full bg-sky-200/50 blur-3xl dark:bg-sky-500/10" />
+      <div className="absolute bottom-8 right-10 h-80 w-80 rounded-full bg-teal-200/50 blur-3xl dark:bg-teal-500/10" />
 
-      <div className="relative grid w-full max-w-5xl overflow-hidden rounded-[2rem] border border-white/70 bg-white/75 shadow-[0_30px_80px_rgba(15,23,42,0.12)] backdrop-blur xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="hidden bg-[linear-gradient(145deg,#0f172a,#1d4ed8,#14b8a6)] p-10 text-white xl:flex xl:flex-col xl:justify-between">
-          <div className="space-y-4">
-            <p className="text-sm uppercase tracking-[0.3em] text-white/70">
-              Warehouse Hub
-            </p>
-            <h1 className="max-w-md text-4xl font-semibold leading-tight">
-              Smarter warehouse control for bikes, spares, and stock movement.
-            </h1>
-            <p className="max-w-md text-sm text-white/80">
-              Admins can manage the full inventory view, while each role lands in
-              the workspace built for their daily work.
+      {/* Main Container - Single Centered Card */}
+      <div className="relative w-full max-w-lg overflow-hidden rounded-[2rem] border border-white/80 bg-white/60 p-8 shadow-xl backdrop-blur-xl transition-colors dark:border-white/5 dark:bg-slate-900/40 dark:shadow-[0_20px_60px_rgba(0,0,0,0.5)] sm:p-12">
+        <div className="flex flex-col items-center justify-center space-y-8">
+          
+          {/* Logo container strictly styled for sizing */}
+          <div className="relative mb-2 flex justify-center">
+            <Image 
+              src="/avantbg.png" 
+              alt="Avant Logo" 
+              width={160} 
+              height={45} 
+              className="object-contain drop-shadow-sm dark:invert"
+              priority
+            />
+          </div>
+
+          <div className="w-full space-y-2 text-center">
+            <h2 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
+              Welcome back
+            </h2>
+            <p className="text-sm font-medium text-slate-500 dark:text-slate-400">
+              Enter your credentials to access your workspace.
             </p>
           </div>
 
-          <div className="grid gap-3">
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-4">
-              <p className="text-xs uppercase tracking-[0.25em] text-white/60">
-                Centralized
-              </p>
-              <p className="mt-2 text-lg font-medium">Bike and spare intake</p>
-            </div>
-            <div className="rounded-2xl border border-white/20 bg-white/10 p-4">
-              <p className="text-xs uppercase tracking-[0.25em] text-white/60">
-                Role-aware
-              </p>
-              <p className="mt-2 text-lg font-medium">Admin-only catalog access</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex items-center justify-center p-6 sm:p-10">
-          <div className="w-full max-w-md space-y-6">
-            <div className="space-y-2">
-              <p className="text-sm font-medium uppercase tracking-[0.25em] text-sky-700">
-                Sign in
-              </p>
-              <h2 className="text-3xl font-semibold text-slate-950">
-                Access your workspace
-              </h2>
-              <p className="text-sm text-slate-600">
-                Use your warehouse account to continue.
-              </p>
-            </div>
-
-            <form onSubmit={login} className="space-y-4">
+          <form onSubmit={login} className="w-full space-y-6">
+            <div className="space-y-4">
               <input
                 name="email"
                 type="email"
                 placeholder="Email address"
                 required
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm shadow-sm outline-none transition focus:border-sky-400"
+                className="h-12 w-full rounded-2xl border border-slate-200/80 bg-white/80 px-4 text-sm font-medium text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-slate-950/60 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-sky-400 dark:focus:bg-slate-900"
               />
 
               <input
@@ -129,24 +114,27 @@ export default function LoginPage() {
                 type="password"
                 placeholder="Password"
                 required
-                className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm shadow-sm outline-none transition focus:border-sky-400"
+                className="h-12 w-full rounded-2xl border border-slate-200/80 bg-white/80 px-4 text-sm font-medium text-slate-900 shadow-sm outline-none transition-all placeholder:text-slate-400 focus:border-sky-500 focus:bg-white focus:ring-4 focus:ring-sky-500/10 dark:border-white/10 dark:bg-slate-950/60 dark:text-white dark:placeholder:text-slate-500 dark:focus:border-sky-400 dark:focus:bg-slate-900"
               />
+            </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="h-12 w-full rounded-xl bg-[linear-gradient(135deg,#2563eb,#0f172a)] px-4 text-sm font-medium text-white shadow-[0_14px_30px_rgba(37,99,235,0.22)] transition hover:opacity-95 disabled:opacity-60"
-              >
-                {loading ? "Logging in..." : "Login"}
-              </button>
-            </form>
+            <button
+              type="submit"
+              disabled={loading}
+              className="group relative flex h-12 w-full items-center justify-center overflow-hidden rounded-2xl bg-slate-900 px-4 text-sm font-bold text-white shadow-md transition-all hover:bg-slate-800 active:scale-[0.98] disabled:opacity-70 dark:bg-sky-500 dark:hover:bg-sky-400 dark:shadow-[0_0_20px_rgba(14,165,233,0.2)]"
+            >
+              <div className="absolute inset-0 flex h-full w-full justify-center [transform:skew(-12deg)_translateX(-150%)] group-hover:duration-1000 group-hover:[transform:skew(-12deg)_translateX(150%)]">
+                <div className="relative h-full w-8 bg-white/20" />
+              </div>
+              <span className="relative z-10">{loading ? "Authenticating..." : "Sign In"}</span>
+            </button>
+          </form>
 
-            {errorMsg ? (
-              <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
-                {errorMsg}
-              </p>
-            ) : null}
-          </div>
+          {errorMsg ? (
+            <div className="w-full animate-in fade-in slide-in-from-top-2 rounded-2xl border border-red-200 bg-red-50 p-4 text-center text-sm font-medium text-red-600 dark:border-red-500/20 dark:bg-red-500/10 dark:text-red-400">
+              {errorMsg}
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
