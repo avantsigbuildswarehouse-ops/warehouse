@@ -6,13 +6,16 @@ export async function GET(
   { params }: { params: Promise<{ dealerCode: string }> }
 ) {
   const { dealerCode } = await params;
+  const { searchParams } = new URL(req.url);
+  const limit = parseInt(searchParams.get('limit') || '1000', 10);
 
   const { data: vehicleStock, error: vehicleError } = await supabaseAdmin
     .schema("ASB showrooms")
     .from("dealer_vehicle_inventory")
     .select("*")
     .eq("dealer_code", dealerCode)
-    .order("issued_at", { ascending: false });
+    .order("issued_at", { ascending: false })
+    .limit(limit);
 
   if (vehicleError) {
     return NextResponse.json(
@@ -26,7 +29,8 @@ export async function GET(
     .from("dealer_spare_inventory")
     .select("*")
     .eq("dealer_code", dealerCode)
-    .order("issued_at", { ascending: false });
+    .order("issued_at", { ascending: false })
+    .limit(limit);
 
   if (spareError) {
     return NextResponse.json(

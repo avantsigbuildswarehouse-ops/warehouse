@@ -1,19 +1,31 @@
 import { createClient } from "@/lib/supabase/server";
 
 export async function getUserRole() {
-  const supabase = createClient();
+  try {
+    const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  if (!user) return null;
+    if (userError || !user) {
+      return null;
+    }
 
-  const { data } = await supabase
-    .from("profiles")
-    .select("role")
-    .eq("id", user.id)
-    .single();
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("role")
+      .eq("id", user.id)
+      .single();
 
-  return data?.role;
+    if (error || !data) {
+      return null;
+    }
+
+    return data.role;
+  } catch (error) {
+    console.error("Error getting user role:", error);
+    return null;
+  }
 }

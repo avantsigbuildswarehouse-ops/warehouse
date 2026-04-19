@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pencil, X, ShieldCheck, Loader2, CheckCircle2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 type Profile = {
   id: string;
@@ -35,6 +36,10 @@ const roleBadgeColor: Record<string, string> = {
 export default function ProfilesPage() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalProfiles, setTotalProfiles] = useState(0);
+  const pageSize = 10;
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editRole, setEditRole] = useState("");
@@ -49,19 +54,41 @@ export default function ProfilesPage() {
   const [successId, setSuccessId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchProfiles();
-  }, []);
+    void fetchProfiles(currentPage);
+  }, [currentPage]);
 
-  async function fetchProfiles() {
+  async function fetchProfiles(page: number = 1) {
     setLoading(true);
     try {
-      const res = await fetch("/api/profiles");
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session?.access_token) {
+        console.error('No session found');
+        setLoading(false);
+        return;
+      }
+
+      const res = await fetch(`/api/profiles?page=${page}&limit=${pageSize}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+      });
       const data = await res.json();
       setProfiles(Array.isArray(data) ? data : []);
+      setTotalProfiles(data.length);
+      setTotalPages(Math.ceil(data.length / pageSize));
     } catch (e) {
       console.error(e);
     } finally {
       setLoading(false);
+    }
+  }
+
+  function goToPage(page: number) {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      void fetchProfiles(page);
     }
   }
 
@@ -161,7 +188,7 @@ export default function ProfilesPage() {
               </p>
             </div>
             <Badge variant="outline" className="text-sm">
-              {profiles.length} users
+              {totalProfiles || profiles.length} users
             </Badge>
           </div>
         </div>
@@ -171,7 +198,7 @@ export default function ProfilesPage() {
           <CardHeader>
             <CardTitle className="dark:text-white">All Profiles</CardTitle>
             <CardDescription className="dark:text-slate-400">
-              Click Update to change a user's role or code.
+              Click Update to change a user&apos;s role or code.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -291,6 +318,44 @@ export default function ProfilesPage() {
                     ))}
                   </tbody>
                 </table>
+              
+                {/* PAGINATION CONTROLS */}
+                <div className="mt-4 flex items-center justify-between text-sm">
+                  <div className="text-slate-600 dark:text-slate-400">
+                    Page {currentPage} of {totalPages || 1}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={currentPage <= 1}
+                      onClick={() => goToPage(currentPage - 1)}
+                    >
+                      Previous
+                    </Button>
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      const pageNum = i + 1;
+                      return (
+                        <Button
+                          key={pageNum}
+                          size="sm"
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          onClick={() => goToPage(pageNum)}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={currentPage >= totalPages}
+                      onClick={() => goToPage(currentPage + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
               </div>
             )}
           </CardContent>

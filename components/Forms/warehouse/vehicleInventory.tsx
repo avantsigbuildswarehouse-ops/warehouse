@@ -83,6 +83,9 @@ export default function VehicleInventoryForm() {
   const [loadingInventory, setLoadingInventory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<StatusState>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const pageSize = 15;
 
   const {
     register,
@@ -211,6 +214,22 @@ export default function VehicleInventoryForm() {
     return inventory.items.filter((item) => item.model_code === selectedModel);
   }, [inventory.items, selectedModel]);
 
+  const paginatedInventory = useMemo(() => {
+    const offset = (currentPage - 1) * pageSize;
+    return visibleInventory.slice(offset, offset + pageSize);
+  }, [visibleInventory, currentPage]);
+
+  useEffect(() => {
+    setTotalPages(Math.ceil(visibleInventory.length / pageSize));
+    setCurrentPage(1);
+  }, [visibleInventory]);
+
+  function goToPage(page: number) {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+    }
+  }
+
   return (
     <div className="min-h-full bg-slate-50 transition-colors dark:bg-[#080B14]">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -283,7 +302,7 @@ export default function VehicleInventoryForm() {
               </CardDescription>
             </CardHeader>
 
-            <CardContent>
+            <CardContent className="space-y-6 max-h-[70vh] overflow-y-auto no-scrollbar">
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="modelCode">Vehicle model</Label>
@@ -552,47 +571,87 @@ export default function VehicleInventoryForm() {
                 No bikes found for the current selection.
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-y-2 text-sm">
-                  <thead>
-                    <tr className="text-left text-slate-500 dark:text-slate-400">
-                      <th className="px-3 py-2 font-medium">Model</th>
-                      <th className="px-3 py-2 font-medium">Engine</th>
-                      <th className="px-3 py-2 font-medium">Chassis</th>
-                      <th className="px-3 py-2 font-medium">Color</th>
-                      <th className="px-3 py-2 font-medium">YOM</th>
-                      <th className="px-3 py-2 font-medium">Description</th>
-                      <th className="px-3 py-2 font-medium">Status</th>
-                      <th className="px-3 py-2 font-medium">Price</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleInventory.map((item) => (
-                      <tr
-                        key={`${item.engine_number}-${item.chassis_number}`}
-                        className="rounded-2xl bg-slate-50 text-slate-700 transition hover:bg-slate-100 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:bg-slate-800/70"
-                      >
-                        <td className="rounded-l-2xl px-3 py-3 align-top">
-                          <p className="font-semibold text-slate-900 dark:text-white">
-                            {item.model_name}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {item.model_code}
-                          </p>
-                        </td>
-                        <td className="px-3 py-3">{item.engine_number}</td>
-                        <td className="px-3 py-3">{item.chassis_number}</td>
-                        <td className="px-3 py-3">{item.color}</td>
-                        <td className="px-3 py-3">{item.yom}</td>
-                        <td className="px-3 py-3">{item.version}</td>
-                        <td className="px-3 py-3">{item.status}</td>
-                        <td className="rounded-r-2xl px-3 py-3 font-medium text-slate-900 dark:text-white">
-                          {formatNumber(item.price)}
-                        </td>
+              <div className="space-y-4">
+                <div className="overflow-x-auto">
+                  <table className="min-w-full border-separate border-spacing-y-2 text-sm">
+                    <thead>
+                      <tr className="text-left text-slate-500 dark:text-slate-400">
+                        <th className="px-3 py-2 font-medium">Model</th>
+                        <th className="px-3 py-2 font-medium">Engine</th>
+                        <th className="px-3 py-2 font-medium">Chassis</th>
+                        <th className="px-3 py-2 font-medium">Color</th>
+                        <th className="px-3 py-2 font-medium">YOM</th>
+                        <th className="px-3 py-2 font-medium">Description</th>
+                        <th className="px-3 py-2 font-medium">Status</th>
+                        <th className="px-3 py-2 font-medium">Price</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {paginatedInventory.map((item) => (
+                        <tr
+                          key={`${item.engine_number}-${item.chassis_number}`}
+                          className="rounded-2xl bg-slate-50 text-slate-700 transition hover:bg-slate-100 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:bg-slate-800/70"
+                        >
+                          <td className="rounded-l-2xl px-3 py-3 align-top">
+                            <p className="font-semibold text-slate-900 dark:text-white">
+                              {item.model_name}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-slate-400">
+                              {item.model_code}
+                            </p>
+                          </td>
+                          <td className="px-3 py-3">{item.engine_number}</td>
+                          <td className="px-3 py-3">{item.chassis_number}</td>
+                          <td className="px-3 py-3">{item.color}</td>
+                          <td className="px-3 py-3">{item.yom}</td>
+                          <td className="px-3 py-3">{item.version}</td>
+                          <td className="px-3 py-3">{item.status}</td>
+                          <td className="rounded-r-2xl px-3 py-3 font-medium text-slate-900 dark:text-white">
+                            {formatNumber(item.price)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between text-sm border-t border-slate-200 dark:border-slate-700 pt-4">
+                    <div className="text-slate-600 dark:text-slate-400">
+                      Page {currentPage} of {totalPages}
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={currentPage <= 1}
+                        onClick={() => goToPage(currentPage - 1)}
+                      >
+                        Previous
+                      </Button>
+                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                        const pageNum = i + 1;
+                        return (
+                          <Button
+                            key={pageNum}
+                            size="sm"
+                            variant={currentPage === pageNum ? "default" : "outline"}
+                            onClick={() => goToPage(pageNum)}
+                          >
+                            {pageNum}
+                          </Button>
+                        );
+                      })}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={currentPage >= totalPages}
+                        onClick={() => goToPage(currentPage + 1)}
+                      >
+                        Next
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </CardContent>

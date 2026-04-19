@@ -1,8 +1,20 @@
 // hooks/Company/companyInvoice.ts
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
+import type { CompanyInvoiceResponse, CompanyResponse, VehicleResponse } from "@/lib/types/companyResponse";
 
-const generateCompanyInvoicePdf = async (invoiceData: any) => {
+interface InvoiceData extends CompanyInvoiceResponse {
+  companies?: CompanyResponse;
+  vehicles?: VehicleResponse;
+  created_at?: string;
+}
+
+const generateCompanyInvoicePdf = async (invoiceData: InvoiceData) => {
+  // Validate input
+  if (!invoiceData || typeof invoiceData !== 'object') {
+    throw new Error('Invalid invoice data');
+  }
+
   const doc = new jsPDF("p", "mm", "a4");
 
   // ==============================
@@ -10,13 +22,16 @@ const generateCompanyInvoicePdf = async (invoiceData: any) => {
   // ==============================
   let qrCodeSrc = "";
   try {
-    const baseUrl = "https://abs-sigma.vercel.app";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://abs-sigma.vercel.app";
     const engineNumber = invoiceData.vehicles?.engineNumber || invoiceData.engine_no;
     const chassisNumber = invoiceData.vehicles?.chassisNumber || invoiceData.chassis_no;
-    const qrData = `${baseUrl}/portal/${chassisNumber}/${engineNumber}`;
-    qrCodeSrc = await QRCode.toDataURL(qrData);
+    
+    if (engineNumber && chassisNumber) {
+      const qrData = `${baseUrl}/portal/${chassisNumber}/${engineNumber}`;
+      qrCodeSrc = await QRCode.toDataURL(qrData);
+    }
   } catch (error) {
-    console.error(error);
+    console.error("Failed to generate QR code:", error);
   }
 
   // ==============================

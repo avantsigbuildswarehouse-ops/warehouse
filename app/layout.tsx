@@ -8,6 +8,11 @@ const outfit = Outfit({ subsets: ["latin"], variable: "--font-outfit" });
 export const metadata: Metadata = {
   title: "Warehouse Hub",
   description: "Warehouse management and inventory control",
+  openGraph: {
+    title: "Warehouse Hub",
+    description: "Warehouse management and inventory control",
+    type: "website",
+  },
 };
 
 export default function RootLayout({

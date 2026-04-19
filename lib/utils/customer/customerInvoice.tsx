@@ -1,8 +1,20 @@
 // hooks/Company/companyInvoice.ts
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
+import type { CustomerInvoiceResponse, CustomerResponse, VehicleResponse } from "@/lib/types/customerResponse";
 
-const generateCompanyInvoicePdf = async (invoiceData: any) => {
+interface InvoiceData extends CustomerInvoiceResponse {
+  customers?: CustomerResponse;
+  vehicles?: VehicleResponse;
+  created_at?: string;
+}
+
+const generateCompanyInvoicePdf = async (invoiceData: InvoiceData) => {
+  // Validate input
+  if (!invoiceData || typeof invoiceData !== 'object') {
+    throw new Error('Invalid invoice data');
+  }
+
   const doc = new jsPDF("p", "mm", "a4");
 
   // ==============================
@@ -10,13 +22,16 @@ const generateCompanyInvoicePdf = async (invoiceData: any) => {
   // ==============================
   let qrCodeSrc = "";
   try {
-    const baseUrl = "https://abs-sigma.vercel.app";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://abs-sigma.vercel.app";
     const engineNumber = invoiceData.vehicles?.engineNumber || invoiceData.engine_no;
     const chassisNumber = invoiceData.vehicles?.chassisNumber || invoiceData.chassis_no;
-    const qrData = `${baseUrl}/portal/${chassisNumber}/${engineNumber}`;
-    qrCodeSrc = await QRCode.toDataURL(qrData);
+    
+    if (engineNumber && chassisNumber) {
+      const qrData = `${baseUrl}/portal/${chassisNumber}/${engineNumber}`;
+      qrCodeSrc = await QRCode.toDataURL(qrData);
+    }
   } catch (error) {
-    console.error(error);
+    console.error("Failed to generate QR code:", error);
   }
 
   // ==============================
@@ -58,12 +73,12 @@ const generateCompanyInvoicePdf = async (invoiceData: any) => {
   doc.setFont("helvetica", "normal");
   doc.text("Invoice No:", 140, 16);
   doc.text("Date:", 140, 22);
-  doc.text("Company ID:", 140, 28);
+  doc.text("Customer ID:", 140, 28);
 
   doc.setFont("helvetica", "bold");
   doc.text(invoiceData.id?.toString() || "-", 160, 16);
   doc.text(new Date(invoiceData.created_at || Date.now()).toLocaleDateString(), 160, 22);
-  doc.text(invoiceData.company_id?.toString() || "-", 160, 28);
+  doc.text(invoiceData.customer_id?.toString() || "-", 160, 28);
 
   doc.setFont("helvetica", "normal");
   doc.text("Print Date:", 15, 35);
@@ -105,41 +120,41 @@ const generateCompanyInvoicePdf = async (invoiceData: any) => {
   };
 
   addRow(
-    "Company Name:",
-    invoiceData.companies?.company_name || "-",
+    "Customer Name:",
+    invoiceData.customers ? `${invoiceData.customers.firstName || ""} ${invoiceData.customers.lastName || ""}`.trim() : "-",
     "Model:",
     invoiceData.vehicles?.vehicleModel || invoiceData.vehicle_model || "-"
   );
 
   addRow(
-    "BR Number:",
-    invoiceData.companies?.BR_no?.toString() || "-",
+    "NIC Number:",
+    invoiceData.customers?.nic_no?.toString() || "-",
     "Engine No:",
     invoiceData.vehicles?.engineNumber || invoiceData.engine_no || "-"
   );
 
   addRow(
-    "VAT Number:",
-    invoiceData.companies?.VAT_no?.toString() || "-",
+    "Phone Number:",
+    invoiceData.customers?.phoneNumber?.toString() || "-",
     "Chassis No:",
     invoiceData.vehicles?.chassisNumber || invoiceData.chassis_no || "-"
   );
 
   addRow(
     "Contact:",
-    invoiceData.companies?.company_contact?.toString() || "-",
+    invoiceData.customers?.phoneNumber?.toString() || "-",
     "Color:",
     invoiceData.vehicles?.color || invoiceData.vehicle_color || "-"
   );
 
   addRow(
     "Email:",
-    invoiceData.companies?.company_email || "-",
+    "-",
     "Year:",
     invoiceData.vehicles?.manuYear || "-"
   );
 
-  const address = invoiceData.companies?.address || "-";
+  const address = invoiceData.customers?.address || "-";
   const truncatedAddress = address.length > 22 ? address.substring(0, 19) + "..." : address;
   
   doc.rect(15, y, 90, 10);

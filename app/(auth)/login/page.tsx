@@ -23,8 +23,27 @@ export default function LoginPage() {
     const form = e.target as HTMLFormElement;
     const formData = new FormData(form);
 
-    const email = formData.get("email") as string;
+    const email = (formData.get("email") as string)?.trim();
     const password = formData.get("password") as string;
+
+    // Validate inputs
+    if (!email || !password) {
+      setLoading(false);
+      setErrorMsg("Email and password are required");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setLoading(false);
+      setErrorMsg("Invalid email format");
+      return;
+    }
+
+    if (password.length < 6) {
+      setLoading(false);
+      setErrorMsg("Invalid credentials");
+      return;
+    }
 
     const { error } = await supabase.auth.signInWithPassword({
       email,

@@ -617,7 +617,6 @@ export default function SparesInventory() {
                       <th className="px-3 py-2 font-medium">Serial</th>
                       <th className="px-3 py-2 font-medium">Status</th>
                       <th className="px-3 py-2 font-medium">Price</th>
-                      <th className="px-3 py-2 font-medium">Stock count</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -656,9 +655,6 @@ export default function SparesInventory() {
                           {formatNumber(item.price)}
                         </td>
 
-                        <td className="rounded-r-2xl px-3 py-3">
-                          {formatNumber(item.stock_quantity)}
-                        </td>
                       </tr>
                     ))}
                   </tbody>

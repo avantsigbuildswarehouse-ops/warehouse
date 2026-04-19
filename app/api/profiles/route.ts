@@ -10,21 +10,53 @@ type Profile = {
     created_at: string; 
 }
 
-export async function GET() {
-  const { data, error } = await supabaseAdmin
-    .schema("public")
-    .from("profiles")
-    .select("*")
-    .order("created_at", { ascending: false });
+export async function GET(req: Request) {
+  try {
+    // Check for authentication header
+    const authHeader = req.headers.get('authorization');
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
 
-  if (error) {
+    const token = authHeader.substring(7);
+    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
+    
+    if (userError || !userData.user) {
+      return NextResponse.json(
+        { error: 'Unauthorized' },
+        { status: 401 }
+      );
+    }
+
+    const { searchParams } = new URL(req.url);
+    const page = parseInt(searchParams.get('page') || '1', 10);
+    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const offset = (page - 1) * limit;
+
+    const { data, error } = await supabaseAdmin
+      .schema("public")
+      .from("profiles")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      return NextResponse.json(
+        { error: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json(data ?? []);
+  } catch (err) {
     return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
+      { error: 'Unauthorized' },
+      { status: 401 }
     );
   }
-
-  return NextResponse.json(data ?? []);
 }
 
 

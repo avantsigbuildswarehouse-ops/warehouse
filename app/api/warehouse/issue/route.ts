@@ -27,7 +27,8 @@ export async function POST(req: Request) {
         .from("vehicle_inventory")
         .select("*")
         .eq("status", "AVAILABLE")
-        .in("engine_number", cleanItems);
+        .in("engine_number", cleanItems)
+        .limit(1000);
 
       if (fetchErr) throw new Error(fetchErr.message);
 
@@ -96,7 +97,8 @@ export async function POST(req: Request) {
         .from("vehicle_spare_inventory")
         .select("*")
         .eq("status", "AVAILABLE")
-        .in("serial_number", cleanItems);
+        .in("serial_number", cleanItems)
+        .limit(1000);
 
       if (fetchErr) throw new Error(fetchErr.message);
 
@@ -117,6 +119,7 @@ export async function POST(req: Request) {
         model_code: spare.model_code,
         spare_code: spare.spare_code,
         serial_number: spare.serial_number,
+        price: spare.price,
         issued_at: issuedAt,
       }));
 

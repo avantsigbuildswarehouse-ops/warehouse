@@ -30,7 +30,8 @@ export async function getShowrooms(): Promise<Showroom[]> {
     .schema("ASB showrooms")
     .from("asb_showrooms")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(1000);
 
   if (error) throw new Error(error.message);
 

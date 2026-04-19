@@ -13,12 +13,18 @@ type Dealer = {
 };
 
 /* ---------------- GET ALL DEALERS ---------------- */
-export async function GET() {
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const page = parseInt(searchParams.get('page') || '1', 10);
+  const limit = parseInt(searchParams.get('limit') || '50', 10);
+  const offset = (page - 1) * limit;
+
   const { data, error } = await supabaseAdmin
     .schema("ASB showrooms")
     .from("dealers")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) {
     return NextResponse.json(
@@ -48,7 +54,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch (_err) {
     return NextResponse.json(
       { error: "Invalid request" },
       { status: 400 }

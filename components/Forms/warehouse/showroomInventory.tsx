@@ -237,29 +237,33 @@ export default function ShowroomPage() {
           </CardHeader>
 
           <CardContent className="space-y-3">
-            {showrooms.map((s) => (
-              <div
-                key={s.showroom_code}
-                className="rounded-2xl border border-slate-200 p-4 transition-colors dark:border-white/10 dark:bg-slate-800/20"
-              >
-                <p className="font-semibold text-slate-950 dark:text-white">
-                  {s.city}
-                </p>
-                <p className="text-sm text-slate-600 dark:text-slate-400">
-                  {s.state}
-                </p>
-                <p className="mt-1 text-xs font-mono text-slate-500 dark:text-slate-500">
-                  {s.showroom_code}
-                </p>
-                <Link
-                    href={`/admin/Showroom/${s.showroom_code}`}
-                    className="mt-2 text-sky-600 dark:text-sky-400 text-sm hover:background-sky-100 dark:hover:bg-sky-500/10 rounded transition-colors"
-                  >
-                    View Stock
-                </Link>
-              </div>
-              
-            ))}
+            {showrooms.length === 0 ? (
+              <p className="text-center text-slate-500 dark:text-slate-400">No showrooms found</p>
+            ) : (
+              showrooms.map((s) => (
+                <div
+                  key={s.showroom_code}
+                  className="rounded-2xl border border-slate-200 p-4 transition-colors dark:border-white/10 dark:bg-slate-800/20"
+                >
+                  <p className="font-semibold text-slate-950 dark:text-white">
+                    {s.city}
+                  </p>
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    {s.state}
+                  </p>
+                  <p className="mt-1 text-xs font-mono text-slate-500 dark:text-slate-500">
+                    {s.showroom_code}
+                  </p>
+                  <Link
+                      href={`/admin/Showroom/${s.showroom_code}`}
+                      className="mt-2 text-sky-600 dark:text-sky-400 text-sm hover:background-sky-100 dark:hover:bg-sky-500/10 rounded transition-colors"
+                    >
+                      View Stock
+                  </Link>
+                </div>
+                
+              ))
+            )}
           </CardContent>
         </Card>
 

@@ -4,15 +4,22 @@ import { createClient } from "@supabase/supabase-js";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    console.log("verify-admin body:", body);
 
     const { email, password } = body;
 
+    // Validate inputs
     if (!email || !password) {
-      console.log("Missing email or password:", { email, password });
       return NextResponse.json(
         { error: "Email and password are required" },
         { status: 400 }
+      );
+    }
+
+    // Email format validation
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email as string)) {
+      return NextResponse.json(
+        { error: "Invalid credentials" },
+        { status: 401 }
       );
     }
 
@@ -25,8 +32,6 @@ export async function POST(req: Request) {
       email,
       password,
     });
-
-    console.log("signInWithPassword result:", { data, error });
 
     if (error || !data.user) {
       return NextResponse.json(
@@ -43,18 +48,15 @@ export async function POST(req: Request) {
       .eq("id", data.user.id)
       .single();
 
-    console.log("profile role check:", { profile, profileError });
-
     if (profileError || profile?.role !== "admin") {
       return NextResponse.json(
-        { error: "Only admins can perform this action" },
-        { status: 403 }
+        { error: "Invalid credentials" },
+        { status: 401 }
       );
     }
 
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error("verify-admin caught error:", err);
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }
