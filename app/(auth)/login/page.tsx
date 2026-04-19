@@ -85,7 +85,7 @@ export default function LoginPage() {
               alt="Avant Logo" 
               width={160} 
               height={45} 
-              className="object-contain drop-shadow-sm dark:invert"
+              className="object-contain scale-200"
               priority
             />
           </div>

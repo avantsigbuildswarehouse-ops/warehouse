@@ -4,11 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RefreshCw, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 import {
   asbDealerSchema,
   type ASBDealerFormValues,
-} from "@/lib/validations/asb-dealer.schema";
+} from "@/lib/validations/dealer/asb-dealer.schema";
 
 import {
   getDealers,
@@ -33,6 +35,7 @@ export default function DealerPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<Status>(null);
+  const router = useRouter();
 
   const {
     register,
@@ -165,34 +168,58 @@ export default function DealerPage() {
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-              <div>
-                <Label className="dark:text-slate-300">Business Name</Label>
-                <Input {...register("business_name")} className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
-                {errors.business_name && (
-                  <p className="text-sm text-red-500 mt-1">
-                    {errors.business_name.message}
-                  </p>
-                )}
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              <div>
-                <Label className="dark:text-slate-300">Owner Name</Label>
-                <Input {...register("owner_name")} className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
-              </div>
+                <div>
+                  <Label className="dark:text-slate-300">Business Name</Label>
+                  <Input
+                    placeholder="ABC Motors Pvt Ltd"
+                    {...register("business_name")}
+                    className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
+                  />
+                  {errors.business_name && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {errors.business_name.message}
+                    </p>
+                  )}
+                </div>
 
-              <div>
-                <Label className="dark:text-slate-300">City</Label>
-                <Input {...register("city")} className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
-              </div>
+                <div>
+                  <Label className="dark:text-slate-300">Owner Name</Label>
+                  <Input
+                    placeholder="John Perera"
+                    {...register("owner_name")}
+                    className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
+                  />
+                </div>
 
-              <div>
-                <Label className="dark:text-slate-300">State</Label>
-                <Input {...register("state")} className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
-              </div>
+                <div>
+                  <Label className="dark:text-slate-300">City</Label>
+                  <Input
+                    placeholder="Colombo"
+                    {...register("city")}
+                    className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
+                  />
+                </div>
 
-              <div>
-                <Label className="dark:text-slate-300">Address</Label>
-                <Input {...register("address")} className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                <div>
+                  <Label className="dark:text-slate-300">State</Label>
+                  <Input
+                    placeholder="Western Province"
+                    {...register("state")}
+                    className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
+                  />
+                </div>
+
+                <div className="md:col-span-2">
+                  <Label className="dark:text-slate-300">Address</Label>
+                  <Input
+                    placeholder="No 25, Galle Road, Colombo 03"
+                    {...register("address")}
+                    className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
+                  />
+                </div>
+
               </div>
 
               <Button disabled={submitting}>
@@ -233,6 +260,12 @@ export default function DealerPage() {
                     {d.city} • {d.state}
                   </p>
                   <p className="mt-1 text-xs font-mono text-slate-500 dark:text-slate-500">{d.dealer_code}</p>
+                  <Link
+                    href={`/admin/Dealers/${d.dealer_code}`}
+                    className="mt-2 text-sky-600 dark:text-sky-400 text-sm hover:background-sky-100 dark:hover:bg-sky-500/10 rounded transition-colors"
+                  >
+                    View Stock
+                  </Link>
                 </div>
 
                 <Badge variant={d.is_active ? "default" : "secondary"}>

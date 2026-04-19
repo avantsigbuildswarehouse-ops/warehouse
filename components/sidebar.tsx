@@ -10,8 +10,10 @@ import {
   Building2,
   DoorOpen,
   LayoutDashboard,
+  PackageOpen,
   Shield,
   Users,
+  History,
 } from "lucide-react";
 
 import LogoutButton from "./logout-button";
@@ -35,18 +37,20 @@ function getNavItems(role: string): NavItem[] {
   if (role === "admin") {
     return [
       { href: "/admin", label: "Admin Home", icon: Shield, exact: true },
+      { href: "/admin/Profiles", label: "Profiles", icon: Users },
       { href: "/admin/Inventory", label: "Vehicle Inventory", icon: Archive },
       { href: "/admin/Spares", label: "Spare Inventory", icon: Users },
       { href: "/admin/Showroom", label: "Showrooms", icon: Building },
       { href: "/admin/Dealers", label: "Dealers", icon: Building2 },
+      { href: "/admin/IssueStock", label: "Issue Inventory", icon: PackageOpen },
+      { href: "/admin/IssuedHistory", label: "Issued History", icon: History },
     ];
   }
 
-  if (role === "manager") {
+  if (role === "dealer-admin") {
     return [
-      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-      { href: "/manager", label: "Manager", icon: Users },
-      { href: "/frontdesk", label: "Front Desk", icon: DoorOpen },
+      { href: "/admin/Dealers", label: "Dealers", icon: Building2 },
+      { href: "/admin/IssuedHistory", label: "Issued History", icon: History },
     ];
   }
 
@@ -65,22 +69,20 @@ export default function Sidebar({ role }: Props) {
 
   return (
     <div className="sticky top-0 z-20 flex h-screen w-72 flex-col justify-between border-r border-slate-200 bg-slate-50 p-4 transition-colors dark:border-white/10 dark:bg-[#080B14]">
-      <div className="flex flex-col gap-6">
-        
+      <div className="flex min-h-0 flex-col gap-6">
+
         {/* Brand Area */}
-        <div className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/40 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:shadow-none">
+        <div className="relative overflow-hidden rounded-3xl border border-white/60 bg-white/40 p-5 shadow-[0_8px_30px_rgba(0,0,0,0.04)] backdrop-blur-md dark:border-white/10 dark:bg-white/5 dark:shadow-none flex-shrink-0">
           <div className="absolute inset-x-0 top-0 h-24 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.8),transparent_70%)] dark:bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.05),transparent_70%)]" />
           <div className="relative flex flex-col items-start gap-4">
-            
-            <Image 
-              src="/avantbg.png" 
-              alt="Avant Logo" 
-              width={140} 
-              height={40} 
-              className="object-contain drop-shadow-sm dark:invert"
+            <Image
+              src="/avantbg.png"
+              alt="Avant Logo"
+              width={140}
+              height={40}
+              className="object-contain scale-150 drop-shadow-sm light:invert"
               priority
             />
-            
             <div className="space-y-2 w-full">
               <Badge className="w-fit bg-slate-900 text-white hover:bg-slate-800 dark:bg-sky-500/20 dark:text-sky-300 dark:hover:bg-sky-500/30 dark:border-sky-500/30 border-transparent transition-colors">
                 {role.toUpperCase()} WORKSPACE
@@ -94,10 +96,10 @@ export default function Sidebar({ role }: Props) {
           </div>
         </div>
 
-        <Separator className="bg-slate-200/60 dark:bg-slate-800" />
+        <Separator className="bg-slate-200/60 dark:bg-slate-800 flex-shrink-0" />
 
         {/* Navigation */}
-        <nav className="flex flex-col gap-1.5">
+        <nav className="flex flex-col gap-1.5 overflow-y-auto min-h-0 flex-1 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-200 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-track]:bg-transparent">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.exact
@@ -115,12 +117,14 @@ export default function Sidebar({ role }: Props) {
                     : "text-slate-600 hover:bg-white/60 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800/50 dark:hover:text-slate-200"
                 )}
               >
-                <Icon 
-                  size={18} 
+                <Icon
+                  size={18}
                   className={cn(
-                    "transition-transform duration-200 group-hover:scale-110",
-                    isActive ? "text-sky-600 dark:text-sky-400" : "text-slate-400 dark:text-slate-500"
-                  )} 
+                    "transition-transform duration-200 group-hover:scale-110 flex-shrink-0",
+                    isActive
+                      ? "text-sky-600 dark:text-sky-400"
+                      : "text-slate-400 dark:text-slate-500"
+                  )}
                 />
                 {item.label}
               </Link>
@@ -130,7 +134,7 @@ export default function Sidebar({ role }: Props) {
       </div>
 
       {/* Footer Area */}
-      <div className="flex flex-col gap-2">
+      <div className="flex flex-col gap-2 flex-shrink-0 pt-4">
         <div className="flex items-center gap-2">
           <ThemeToggle />
           <div className="flex-1 rounded-xl border border-slate-200/80 bg-white/70 p-1 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/70">

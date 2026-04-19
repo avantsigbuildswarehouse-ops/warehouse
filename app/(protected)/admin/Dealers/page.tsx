@@ -1,4 +1,4 @@
-import DealerPage from "@/components/Forms/dealerInventory"
+import DealerPage from "@/components/Forms/warehouse/dealerInventory"
 
 
 const page = () => {

@@ -1,4 +1,4 @@
-import ShowroomPage from "@/components/Forms/showroomInventory"
+import ShowroomPage from "@/components/Forms/warehouse/showroomInventory"
 
 
 const page = () => {

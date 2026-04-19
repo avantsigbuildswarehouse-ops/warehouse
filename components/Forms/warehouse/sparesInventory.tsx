@@ -8,7 +8,7 @@ import { CircleDollarSign, PackagePlus, RefreshCw, Wrench } from "lucide-react";
 import {
   vehicleSpareSchema,
   type VehicleSpareFormValues,
-} from "@/lib/validations/vehicle-spare.schema";
+} from "@/lib/validations/warehouse/vehicle-spare.schema";
 import SpareDialog from "@/components/spare-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +43,7 @@ type SpareInventoryItem = {
   spare_code: string;
   spare_name: string;
   serial_number: string;
+  status: string;
   price: number;
   stock_quantity: number;
 };
@@ -145,10 +146,9 @@ export default function SparesInventory() {
       }
 
       setInventory(
-        data ?? {
-          summary: { totalUnits: 0, totalSpareTypes: 0, totalValue: 0 },
-          items: [],
-        }
+        data && Array.isArray(data.items)
+          ? data
+          : { summary: { totalUnits: 0, totalSpareTypes: 0, totalValue: 0 }, items: [] }
       );
     } catch (error) {
       setStatus({
@@ -462,14 +462,14 @@ export default function SparesInventory() {
                   {fields.map((field, index) => (
                     <div
                       key={field.id}
-                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+                      className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4 dark:border-white/10 dark:bg-slate-800/20"
                     >
                       <div className="mb-4 flex items-center justify-between">
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">
                             Serial #{index + 1}
                           </p>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-500 dark:text-slate-400">
                             Track each individual spare item by serial number.
                           </p>
                         </div>
@@ -486,11 +486,12 @@ export default function SparesInventory() {
                       </div>
 
                       <div className="space-y-2">
-                        <Label htmlFor={`serial-${index}`}>Serial number</Label>
+                        <Label htmlFor={`serial-${index}`} className="dark:text-slate-300">Serial number</Label>
                         <Input
                           id={`serial-${index}`}
                           {...register(`spares.${index}.serialNumber`)}
                           placeholder="Serial number"
+                          className="dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
                         />
                         {errors.spares?.[index]?.serialNumber ? (
                           <p className="text-sm text-red-600">
@@ -614,6 +615,7 @@ export default function SparesInventory() {
                       <th className="px-3 py-2 font-medium">Model</th>
                       <th className="px-3 py-2 font-medium">Spare</th>
                       <th className="px-3 py-2 font-medium">Serial</th>
+                      <th className="px-3 py-2 font-medium">Status</th>
                       <th className="px-3 py-2 font-medium">Price</th>
                       <th className="px-3 py-2 font-medium">Stock count</th>
                     </tr>
@@ -621,7 +623,7 @@ export default function SparesInventory() {
                   <tbody>
                     {visibleInventory.map((item) => (
                       <tr
-                        key={`${item.spare_code}-${item.serial_number}`}
+                        key={`${item.model_code}-${item.spare_code}-${item.serial_number}`}
                         className="bg-slate-50 text-slate-700 transition hover:bg-slate-100 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:bg-slate-800/70"
                       >
                         <td className="rounded-l-2xl px-3 py-3 align-top">
@@ -632,6 +634,7 @@ export default function SparesInventory() {
                             {item.model_code}
                           </p>
                         </td>
+
                         <td className="px-3 py-3 align-top">
                           <p className="font-semibold text-slate-900 dark:text-white">
                             {item.spare_name}
@@ -640,10 +643,19 @@ export default function SparesInventory() {
                             {item.spare_code}
                           </p>
                         </td>
-                        <td className="px-3 py-3">{item.serial_number}</td>
+
+                        <td className="px-3 py-3">
+                          {item.serial_number}
+                        </td>
+
+                        <td className="px-3 py-3">
+                          {item.status}
+                        </td>
+
                         <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">
                           {formatNumber(item.price)}
                         </td>
+
                         <td className="rounded-r-2xl px-3 py-3">
                           {formatNumber(item.stock_quantity)}
                         </td>

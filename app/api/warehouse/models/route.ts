@@ -1,3 +1,4 @@
+// app/api/warehouse/models/route.ts
 import { NextResponse } from "next/server";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getVehicleModels } from "@/lib/warehouse/admin-data";
@@ -42,20 +43,12 @@ export async function POST(req: Request) {
   const { data, error } = await supabaseAdmin
     .schema("warehouse")
     .from("vehicle_model_codes")
-    .insert({
-      model_name: name,
-      model_code: code,
-      price,
-      quantity: 0  
-    })
+    .insert({ model_name: name, model_code: code, price, quantity: 0 })
     .select()
     .single();
 
   if (error) {
-    return NextResponse.json(
-      { error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 
   return NextResponse.json(data);

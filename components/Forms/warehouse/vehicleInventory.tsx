@@ -8,7 +8,7 @@ import { Bike, Boxes, CircleDollarSign, Plus, RefreshCw } from "lucide-react";
 import {
   vehicleInventorySchema,
   type VehicleInventoryFormValues,
-} from "@/lib/validations/vehicle-inventory.schema";
+} from "@/lib/validations/warehouse/vehicle-inventory.schema";
 import ModelDialog from "@/components/model-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -38,6 +38,7 @@ type InventoryItem = {
   color: string;
   yom: string;
   version: string;
+  status: string;
   price: number;
 };
 
@@ -363,7 +364,7 @@ export default function VehicleInventoryForm() {
                             Bike #{index + 1}
                           </p>
                           <p className="text-xs text-slate-500">
-                            Engine, chassis, appearance, and version details.
+                            Engine, chassis, appearance, and description details.
                           </p>
                         </div>
 
@@ -436,7 +437,7 @@ export default function VehicleInventoryForm() {
                         </div>
 
                         <div className="space-y-2 md:col-span-2">
-                          <Label htmlFor={`version-${index}`}>Version</Label>
+                          <Label htmlFor={`version-${index}`}>Description</Label>
                           <Input
                             id={`version-${index}`}
                             {...register(`bikes.${index}.version`)}
@@ -560,7 +561,8 @@ export default function VehicleInventoryForm() {
                       <th className="px-3 py-2 font-medium">Chassis</th>
                       <th className="px-3 py-2 font-medium">Color</th>
                       <th className="px-3 py-2 font-medium">YOM</th>
-                      <th className="px-3 py-2 font-medium">Version</th>
+                      <th className="px-3 py-2 font-medium">Description</th>
+                      <th className="px-3 py-2 font-medium">Status</th>
                       <th className="px-3 py-2 font-medium">Price</th>
                     </tr>
                   </thead>
@@ -583,6 +585,7 @@ export default function VehicleInventoryForm() {
                         <td className="px-3 py-3">{item.color}</td>
                         <td className="px-3 py-3">{item.yom}</td>
                         <td className="px-3 py-3">{item.version}</td>
+                        <td className="px-3 py-3">{item.status}</td>
                         <td className="rounded-r-2xl px-3 py-3 font-medium text-slate-900 dark:text-white">
                           {formatNumber(item.price)}
                         </td>

@@ -4,11 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { RefreshCw, Plus } from "lucide-react";
+import Link from "next/link";
 
 import {
   asbShowroomSchema,
   type ASBShowroomFormValues,
-} from "@/lib/validations/asb-showroom.schema";
+} from "@/lib/validations/showroom/asb-showroom.schema";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -169,22 +170,50 @@ export default function ShowroomPage() {
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
 
-              <div>
-                <Label className="dark:text-slate-300">City</Label>
-                <Input {...register("city")} className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
-                {errors.city && <p className="text-sm text-red-500 mt-1">{errors.city.message}</p>}
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
 
-              <div>
-                <Label className="dark:text-slate-300">State</Label>
-                <Input {...register("state")} className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
-                {errors.state && <p className="text-sm text-red-500 mt-1">{errors.state.message}</p>}
-              </div>
+                <div>
+                  <Label className="dark:text-slate-300">City</Label>
+                  <Input
+                    placeholder="Colombo"
+                    {...register("city")}
+                    className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
+                  />
+                  {errors.city && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {errors.city.message}
+                    </p>
+                  )}
+                </div>
 
-              <div>
-                <Label className="dark:text-slate-300">Address</Label>
-                <Input {...register("address")} className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
-                {errors.address && <p className="text-sm text-red-500 mt-1">{errors.address.message}</p>}
+                <div>
+                  <Label className="dark:text-slate-300">State</Label>
+                  <Input
+                    placeholder="Western Province"
+                    {...register("state")}
+                    className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
+                  />
+                  {errors.state && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {errors.state.message}
+                    </p>
+                  )}
+                </div>
+
+                <div className="md:col-span-2">
+                  <Label className="dark:text-slate-300">Address</Label>
+                  <Input
+                    placeholder="No 25, Galle Road, Colombo 03"
+                    {...register("address")}
+                    className="h-11 rounded-xl border-slate-200 dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
+                  />
+                  {errors.address && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {errors.address.message}
+                    </p>
+                  )}
+                </div>
+
               </div>
 
               <Button disabled={submitting}>
@@ -192,7 +221,11 @@ export default function ShowroomPage() {
                 {submitting ? "Saving..." : "Create Showroom"}
               </Button>
 
-              {status && <p className="text-sm font-medium text-amber-600 dark:text-amber-400">{status}</p>}
+              {status && (
+                <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                  {status}
+                </p>
+              )}
             </form>
           </CardContent>
         </Card>
@@ -205,11 +238,27 @@ export default function ShowroomPage() {
 
           <CardContent className="space-y-3">
             {showrooms.map((s) => (
-              <div key={s.showroom_code} className="rounded-2xl border border-slate-200 p-4 transition-colors dark:border-white/10 dark:bg-slate-800/20">
-                <p className="font-semibold text-slate-950 dark:text-white">{s.city}</p>
-                <p className="text-sm text-slate-600 dark:text-slate-400">{s.state}</p>
-                <p className="mt-1 text-xs font-mono text-slate-500 dark:text-slate-500">{s.showroom_code}</p>
+              <div
+                key={s.showroom_code}
+                className="rounded-2xl border border-slate-200 p-4 transition-colors dark:border-white/10 dark:bg-slate-800/20"
+              >
+                <p className="font-semibold text-slate-950 dark:text-white">
+                  {s.city}
+                </p>
+                <p className="text-sm text-slate-600 dark:text-slate-400">
+                  {s.state}
+                </p>
+                <p className="mt-1 text-xs font-mono text-slate-500 dark:text-slate-500">
+                  {s.showroom_code}
+                </p>
+                <Link
+                    href={`/admin/Showroom/${s.showroom_code}`}
+                    className="mt-2 text-sky-600 dark:text-sky-400 text-sm hover:background-sky-100 dark:hover:bg-sky-500/10 rounded transition-colors"
+                  >
+                    View Stock
+                </Link>
               </div>
+              
             ))}
           </CardContent>
         </Card>

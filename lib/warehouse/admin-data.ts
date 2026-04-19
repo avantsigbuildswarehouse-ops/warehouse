@@ -9,6 +9,7 @@ type VehicleInventoryRow = {
   color: string;
   yom: string;
   version: string;
+  status: string;
   price: number | string | null;
 };
 
@@ -58,7 +59,7 @@ export async function getVehicleInventoryDetails() {
     .schema("warehouse")
     .from("vehicle_inventory")
     .select(
-      "model_code, engine_number, chassis_number, color, yom, version, price"
+      "model_code, engine_number, chassis_number, color, yom, version, status, price"
     )
     .order("model_code")
     .order("engine_number");
@@ -117,7 +118,7 @@ export async function getSpareInventoryDetails() {
   const { data, error } = await supabaseAdmin
     .schema("warehouse")
     .from("vehicle_spare_inventory")
-    .select("model_code, spare_code, serial_number")
+    .select("model_code, spare_code, serial_number, status")
     .order("model_code")
     .order("spare_code")
     .order("serial_number");
