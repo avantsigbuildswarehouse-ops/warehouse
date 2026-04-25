@@ -17,15 +17,17 @@ export default async function ProtectedLayout({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("role")
+    .select("role, email, code")
     .eq("id", user.id)
     .single();
 
   const role = profile?.role ?? null;
+  const email = profile?.email ?? null;
+  const code = profile?.code ?? null;
 
   return (
     <div className="flex min-h-screen bg-transparent">
-      <Sidebar role={role} />
+      <Sidebar role={role} email={email} code={code} />
       <main className="flex-1 overflow-x-hidden">{children}</main>
     </div>
   );

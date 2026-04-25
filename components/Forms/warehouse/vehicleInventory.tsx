@@ -12,6 +12,7 @@ import {
 import ModelDialog from "@/components/model-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PackageOpen } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -26,7 +27,8 @@ type VehicleModel = {
   model_code: string;
   model_name: string;
   price: number | string | null;
-  quantity: number | null;
+  arrived_quantity: number | null;
+  warehouse_quantity: number | null;
 };
 
 type InventoryItem = {
@@ -260,32 +262,50 @@ export default function VehicleInventoryForm() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
-            <CardHeader>
-              <CardDescription className="dark:text-slate-400">Total bikes in stock</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-3xl dark:text-white">
-                <Bike className="size-5 text-slate-500" />
-                {formatNumber(inventory.summary.totalUnits)}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card className="border-sky-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(239,246,255,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
+            <CardHeader className="p-6">
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Vehicles Arrived</CardDescription>
+              <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
+                <div className="rounded-xl bg-sky-100 p-2.5 dark:bg-sky-500/20">
+                  <Bike className="size-6 text-sky-600 dark:text-sky-400" />
+                </div>
+                {formatNumber(models.reduce((sum, m) => sum + (Number(m.arrived_quantity) || 0), 0))}
               </CardTitle>
             </CardHeader>
           </Card>
 
-          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
-            <CardHeader>
-              <CardDescription className="dark:text-slate-400">Active bike models</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-3xl dark:text-white">
-                <Boxes className="size-5 text-slate-500" />
+          <Card className="border-green-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(240,253,250,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
+            <CardHeader className="p-6">
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Currently in Warehouse</CardDescription>
+              <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
+                <div className="rounded-xl bg-green-100 p-2.5 dark:bg-green-500/20">
+                  <PackageOpen className="size-6 text-green-600 dark:text-green-400" />
+                </div>
+                {formatNumber(models.reduce((sum, m) => sum + (Number(m.warehouse_quantity) || 0), 0))}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+
+          <Card className="border-teal-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(240,253,250,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
+            <CardHeader className="p-6">
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Active bike models</CardDescription>
+              <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
+                <div className="rounded-xl bg-teal-100 p-2.5 dark:bg-teal-500/20">
+                  <Boxes className="size-6 text-teal-600 dark:text-teal-400" />
+                </div>
                 {formatNumber(inventory.summary.totalModels)}
               </CardTitle>
             </CardHeader>
           </Card>
 
-          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
-            <CardHeader>
-              <CardDescription className="dark:text-slate-400">Listed inventory value</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-3xl dark:text-white">
-                <CircleDollarSign className="size-5 text-slate-500" />
+          <Card className="border-indigo-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(238,242,255,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
+            <CardHeader className="p-6">
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Listed inventory value</CardDescription>
+              <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
+                <div className="rounded-xl bg-indigo-100 p-2.5 dark:bg-indigo-500/20">
+                  <CircleDollarSign className="size-6 text-indigo-600 dark:text-indigo-400" />
+                </div>
                 {formatNumber(inventory.summary.totalValue)}
               </CardTitle>
             </CardHeader>
@@ -343,7 +363,7 @@ export default function VehicleInventoryForm() {
                 </div>
 
                 {selectedModelData ? (
-                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-3 dark:border-white/10 dark:bg-slate-800/40">
+                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-4 dark:border-white/10 dark:bg-slate-800/40">
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Model code
@@ -362,10 +382,18 @@ export default function VehicleInventoryForm() {
                     </div>
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                        Current stock
+                        Arrived
                       </p>
                       <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
-                        {formatNumber(Number(selectedModelData.quantity ?? 0))}
+                        {formatNumber(Number(selectedModelData.arrived_quantity ?? 0))}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        In warehouse
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                        {formatNumber(Number(selectedModelData.warehouse_quantity ?? 0))}
                       </p>
                     </div>
                   </div>
@@ -535,9 +563,14 @@ export default function VehicleInventoryForm() {
                           {model.model_code}
                         </p>
                       </div>
+                    </div>
 
-                      <Badge variant="outline" className="dark:border-white/10 dark:bg-slate-900">
-                        {formatNumber(Number(model.quantity ?? 0))} in stock
+                    <div className="mt-3 flex gap-2 flex-wrap">
+                      <Badge className="bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">
+                        Arrived: {formatNumber(Number(model.arrived_quantity ?? 0))}
+                      </Badge>
+                      <Badge className="bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300">
+                        Warehouse: {formatNumber(Number(model.warehouse_quantity ?? 0))}
                       </Badge>
                     </div>
 
@@ -662,8 +695,13 @@ export default function VehicleInventoryForm() {
         open={open}
         setOpen={setOpen}
         onCreated={(newModel) => {
+          const modelWithQuantities = {
+            ...newModel,
+            arrived_quantity: 0,
+            warehouse_quantity: 0,
+          };
           setModels((prev) =>
-            [...prev, newModel].sort((a, b) =>
+            [...prev, modelWithQuantities].sort((a, b) =>
               a.model_name.localeCompare(b.model_name)
             )
           );

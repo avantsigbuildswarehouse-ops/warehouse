@@ -1,3 +1,5 @@
+"use client"
+
 // CompanyRegistrationForm.tsx
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useState } from "react"
@@ -5,7 +7,6 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { CompanyRegistrationData, DatabaseError } from "../../../lib/types/formTypes"
-import insertCompanyData from "../../../app/api/company/inserCompanyData"
 import useCompanyDataValidation from "../../../lib/validations/company/useCompanyDataValidation"
 import { CheckCircle, AlertCircle, Building2, Car, CircleDollarSign } from "lucide-react"
 
@@ -63,15 +64,20 @@ const CompanyRegistrationForm = () => {
         return
       }
 
-      const error = await insertCompanyData(company)
+      const res = await fetch("/api/company/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(company)
+      })
 
-      if (error) {
-        const dbError = error as DatabaseError
-        if (dbError.message?.includes("duplicate") || dbError.code === "23505") {
+      if (!res.ok) {
+        const errorData = await res.json();
+        const errorMessage = errorData.error || "Failed to save company data";
+        if (errorMessage.includes("duplicate") || errorMessage.includes("23505")) {
           setSubmitError("One or more fields (VAT Registration Number, BR Number, Engine Number, or Chassis Number) already exist in our system. Please use unique values.")
           await validateAll(company)
         } else {
-          setSubmitError("Failed to save company data. Please try again.")
+          setSubmitError(errorMessage)
         }
         setIsSubmitting(false)
         return

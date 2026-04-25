@@ -47,7 +47,8 @@ export async function POST(req: Request) {
       spare_name: body.spare_name,
       spare_code: code,
       price: body.price || 0,
-      quantity: 0,
+      warehouse_quantity: 0,
+      arrived_quantity: 0,
     })
     .select()
     .single();

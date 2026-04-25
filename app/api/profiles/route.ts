@@ -62,6 +62,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    const authError = await requireAdminRoute();
+    if (authError) return authError;
+
     const body: Profile = await req.json();
 
     const { error } = await supabaseAdmin

@@ -1,3 +1,6 @@
+"use client"
+
+
 // CustomerRegistrationForm.tsx
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { useState } from "react"
@@ -6,7 +9,6 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { RegistrationData, DatabaseError } from "../../../lib/types/formTypes"
-import insertData from "../../../app/api/customer/insertData"
 import useDataValidation from "../../../lib/validations/customer/useCustomerDataValidation"
 import { createClient } from "../../../lib/supabase/client"
 import { CheckCircle, AlertCircle, User, Car, CircleDollarSign } from "lucide-react"
@@ -64,15 +66,20 @@ const CustomerRegistrationForm = () => {
         return
       }
 
-      const error = await insertData(customer)
+      const res = await fetch("/api/customer/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(customer),
+      });
 
-      if (error) {
-        const dbError = error as DatabaseError
-        if (dbError.message?.includes("duplicate") || dbError.code === "23505") {
+      if (!res.ok) {
+        const errorData = await res.json();
+        const errorMessage = errorData.error || "Failed to save customer data";
+        if (errorMessage.includes("duplicate") || errorMessage.includes("23505")) {
           setSubmitError("One or more fields (Phone Number, NIC, Engine Number, or Chassis Number) already exist in our system. Please use unique values.")
           await validateAll(customer)
         } else {
-          setSubmitError("Failed to save customer data. Please try again.")
+          setSubmitError(errorMessage)
         }
         setIsSubmitting(false)
         return

@@ -17,7 +17,8 @@ type VehicleModelRow = {
   model_code: string;
   model_name: string;
   price: number | string | null;
-  quantity: number | null;
+  arrived_quantity: number | null;
+  warehouse_quantity: number | null;
 };
 
 type SpareInventoryRow = {
@@ -31,7 +32,8 @@ type SpareCodeRow = {
   spare_code: string;
   spare_name: string;
   price: number | string | null;
-  quantity: number | null;
+  arrived_quantity: number | null;
+  warehouse_quantity: number | null;
 };
 
 function toNumber(value: number | string | null | undefined) {
@@ -44,7 +46,7 @@ export async function getVehicleModels() {
   const { data, error } = await supabaseAdmin
     .schema("warehouse")
     .from("vehicle_model_codes")
-    .select("model_code, model_name, price, quantity")
+    .select("model_code, model_name, price, arrived_quantity, warehouse_quantity")
     .order("model_name");
 
   if (error) {
@@ -80,7 +82,7 @@ export async function getVehicleInventoryDetails() {
       ...item,
       price,
       model_name: model?.model_name ?? item.model_code,
-      model_quantity: model?.quantity ?? 0,
+      model_quantity: model?.arrived_quantity ?? 0,
     };
   });
 
@@ -98,7 +100,7 @@ export async function getSpareCodes(modelCode?: string) {
   let query = supabaseAdmin
     .schema("warehouse")
     .from("vehicle_spare_codes")
-    .select("model_code, spare_code, spare_name, price, quantity")
+    .select("model_code, spare_code, spare_name, price, arrived_quantity, warehouse_quantity")
     .order("spare_name");
 
   if (modelCode) {
@@ -147,7 +149,8 @@ export async function getSpareInventoryDetails() {
       price: toNumber(spare?.price),
       model_name: model?.model_name ?? item.model_code,
       spare_name: spare?.spare_name ?? item.spare_code,
-      stock_quantity: spare?.quantity ?? 0,
+      warehouse_quantity: spare?.warehouse_quantity ?? 0,
+      arrived_quantity: spare?.arrived_quantity ?? 0,
     };
   });
 

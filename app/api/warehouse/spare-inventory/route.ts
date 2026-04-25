@@ -44,7 +44,7 @@ export async function GET() {
     const { data: spareRows, error: spareError } = await supabaseAdmin
       .schema("warehouse")
       .from("vehicle_spare_codes")
-      .select("spare_code, spare_name, quantity")
+      .select("spare_code, spare_name, warehouse_quantity")
       .in("spare_code", spareCodes);
 
     if (spareError) throw spareError;
@@ -56,7 +56,7 @@ export async function GET() {
     const spareMap = new Map(
       (spareRows ?? []).map((s) => [
         s.spare_code,
-        { spare_name: s.spare_name, quantity: s.quantity },
+        { spare_name: s.spare_name, quantity: s.warehouse_quantity },
       ])
     );
 
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
   const { data: spareMeta, error: spareError } = await supabaseAdmin
     .schema("warehouse")
     .from("vehicle_spare_codes")
-    .select("price, quantity")
+    .select("price, warehouse_quantity, arrived_quantity")
     .eq("model_code", body.modelCode)
     .eq("spare_code", body.spareCode)
     .single();
@@ -158,12 +158,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  const newQty = Number(spareMeta.quantity ?? 0) + rows.length;
+  const newQty = Number(spareMeta.arrived_quantity ?? 0) + rows.length;
+  const newQty2 = Number(spareMeta.warehouse_quantity ?? 0) + rows.length;
 
   const { error: updateError } = await supabaseAdmin
     .schema("warehouse")
     .from("vehicle_spare_codes")
-    .update({ quantity: newQty })
+    .update({ arrived_quantity: newQty, warehouse_quantity: newQty2 })
     .eq("model_code", body.modelCode)
     .eq("spare_code", body.spareCode);
 

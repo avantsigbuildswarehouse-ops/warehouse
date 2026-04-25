@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export async function PATCH(
@@ -6,6 +7,9 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const authError = await requireAdminRoute();
+    if (authError) return authError;
+
     const { id } = await params;
     const body = await req.json();
 

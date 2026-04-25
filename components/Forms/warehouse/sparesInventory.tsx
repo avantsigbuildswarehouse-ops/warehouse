@@ -12,6 +12,7 @@ import {
 import SpareDialog from "@/components/spare-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { PackageOpen } from "lucide-react";
 import {
   Card,
   CardContent,
@@ -34,7 +35,8 @@ type SpareCode = {
   spare_code: string;
   spare_name: string;
   price: number | string | null;
-  quantity: number | null;
+  arrived_quantity: number | null;
+  warehouse_quantity: number | null;
 };
 
 type SpareInventoryItem = {
@@ -45,7 +47,8 @@ type SpareInventoryItem = {
   serial_number: string;
   status: string;
   price: number;
-  stock_quantity: number;
+  warehouse_quantity: number;
+  arrived_quantity: number;
 };
 
 type SpareInventoryResponse = {
@@ -75,6 +78,7 @@ function formatNumber(value: number) {
 export default function SparesInventory() {
   const [models, setModels] = useState<VehicleModel[]>([]);
   const [spares, setSpares] = useState<SpareCode[]>([]);
+  const [allSpares, setAllSpares] = useState<SpareCode[]>([]);
   const [inventory, setInventory] = useState<SpareInventoryResponse>({
     summary: { totalUnits: 0, totalSpareTypes: 0, totalValue: 0 },
     items: [],
@@ -163,6 +167,25 @@ export default function SparesInventory() {
     }
   }
 
+  async function loadAllSpares() {
+    try {
+      const res = await fetch("/api/warehouse/spares");
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Failed to load all spares");
+      }
+
+      setAllSpares(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setStatus({
+        tone: "error",
+        message:
+          error instanceof Error ? error.message : "Failed to load all spares",
+      });
+    }
+  }
+
   async function loadSpares(code: string) {
     if (!code) {
       setSpares([]);
@@ -192,7 +215,7 @@ export default function SparesInventory() {
   }
 
   useEffect(() => {
-    void Promise.all([loadModels(), loadInventory()]);
+    void Promise.all([loadModels(), loadInventory(), loadAllSpares()]);
   }, []);
 
   useEffect(() => {
@@ -295,32 +318,50 @@ export default function SparesInventory() {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
-            <CardHeader>
-              <CardDescription className="dark:text-slate-400">Serial-tracked spare units</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-3xl dark:text-white">
-                <PackagePlus className="size-5 text-slate-500" />
-                {formatNumber(inventory.summary.totalUnits)}
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <Card className="border-sky-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(239,246,255,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
+            <CardHeader className="p-6">
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Spares Arrived</CardDescription>
+              <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
+                <div className="rounded-xl bg-sky-100 p-2.5 dark:bg-sky-500/20">
+                  <PackagePlus className="size-6 text-sky-600 dark:text-sky-400" />
+                </div>
+                {formatNumber(allSpares.reduce((sum, s) => sum + (Number(s.arrived_quantity) || 0), 0))}
               </CardTitle>
             </CardHeader>
           </Card>
 
-          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
-            <CardHeader>
-              <CardDescription className="dark:text-slate-400">Spare codes in use</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-3xl dark:text-white">
-                <Wrench className="size-5 text-slate-500" />
+          <Card className="border-green-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(240,253,250,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
+            <CardHeader className="p-6">
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Currently in Warehouse</CardDescription>
+              <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
+                <div className="rounded-xl bg-green-100 p-2.5 dark:bg-green-500/20">
+                  <Wrench className="size-6 text-green-600 dark:text-green-400" />
+                </div>
+                {formatNumber(allSpares.reduce((sum, s) => sum + (Number(s.warehouse_quantity) || 0), 0))}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+
+          <Card className="border-amber-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(255,251,235,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
+            <CardHeader className="p-6">
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Spare codes in use</CardDescription>
+              <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
+                <div className="rounded-xl bg-amber-100 p-2.5 dark:bg-amber-500/20">
+                  <Wrench className="size-6 text-amber-600 dark:text-amber-400" />
+                </div>
                 {formatNumber(inventory.summary.totalSpareTypes)}
               </CardTitle>
             </CardHeader>
           </Card>
 
-          <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
-            <CardHeader>
-              <CardDescription className="dark:text-slate-400">Listed spare value</CardDescription>
-              <CardTitle className="flex items-center gap-2 text-3xl dark:text-white">
-                <CircleDollarSign className="size-5 text-slate-500" />
+          <Card className="border-indigo-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(238,242,255,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
+            <CardHeader className="p-6">
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Listed spare value</CardDescription>
+              <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
+                <div className="rounded-xl bg-indigo-100 p-2.5 dark:bg-indigo-500/20">
+                  <CircleDollarSign className="size-6 text-indigo-600 dark:text-indigo-400" />
+                </div>
                 {formatNumber(inventory.summary.totalValue)}
               </CardTitle>
             </CardHeader>
@@ -430,7 +471,7 @@ export default function SparesInventory() {
                 </div>
 
                 {selectedSpare ? (
-                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-3 dark:border-white/10 dark:bg-slate-800/40">
+                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-4 dark:border-white/10 dark:bg-slate-800/40">
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Spare code
@@ -449,10 +490,18 @@ export default function SparesInventory() {
                     </div>
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                        Current stock
+                        Arrived
                       </p>
                       <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
-                        {formatNumber(Number(selectedSpare.quantity ?? 0))}
+                        {formatNumber(Number(selectedSpare.arrived_quantity ?? 0))}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        In warehouse
+                      </p>
+                      <p className="mt-1 text-sm font-semibold text-slate-900 dark:text-white">
+                        {formatNumber(Number(selectedSpare.warehouse_quantity ?? 0))}
                       </p>
                     </div>
                   </div>
@@ -570,9 +619,14 @@ export default function SparesInventory() {
                           {spare.spare_code}
                         </p>
                       </div>
+                    </div>
 
-                      <Badge variant="outline" className="dark:border-white/10 dark:bg-slate-900">
-                        {formatNumber(Number(spare.quantity ?? 0))} in stock
+                    <div className="mt-3 flex gap-2 flex-wrap">
+                      <Badge className="bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">
+                        Arrived: {formatNumber(Number(spare.arrived_quantity ?? 0))}
+                      </Badge>
+                      <Badge className="bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300">
+                        Warehouse: {formatNumber(Number(spare.warehouse_quantity ?? 0))}
                       </Badge>
                     </div>
 
@@ -670,8 +724,13 @@ export default function SparesInventory() {
         setOpen={setOpen}
         modelCode={modelCode}
         onCreated={(newSpare) => {
+          const spareWithQuantities = {
+            ...newSpare,
+            arrived_quantity: 0,
+            warehouse_quantity: 0,
+          };
           setSpares((prev) =>
-            [...prev, newSpare].sort((a, b) =>
+            [...prev, spareWithQuantities].sort((a, b) =>
               a.spare_name.localeCompare(b.spare_name)
             )
           );

@@ -67,7 +67,7 @@ export default function LoginPage() {
 
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("role")
+      .select("role, code")
       .eq("id", user.id)
       .single();
 
@@ -80,7 +80,7 @@ export default function LoginPage() {
     setLoading(false);
 
     if (profile.role === "admin") router.replace("/admin");
-    else if (profile.role === "manager") router.replace("/manager");
+    else if (profile.role === "dealer-admin") router.replace(`/dealer/${profile.code}`);
     else if (profile.role === "frontdesk") router.replace("/frontdesk");
     else router.replace("/dashboard");
   }

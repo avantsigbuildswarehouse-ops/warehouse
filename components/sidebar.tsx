@@ -14,6 +14,9 @@ import {
   Shield,
   Users,
   History,
+  Wrench,
+  ArchiveRestore,
+  ChartNoAxesCombined,
 } from "lucide-react";
 
 import LogoutButton from "./logout-button";
@@ -24,6 +27,8 @@ import { cn } from "@/lib/utils";
 
 type Props = {
   role: string | null;
+  email: string | null;
+  code: string;
 };
 
 type NavItem = {
@@ -33,13 +38,13 @@ type NavItem = {
   exact?: boolean;
 };
 
-function getNavItems(role: string): NavItem[] {
+function getNavItems(role: string, code: string): NavItem[] {
   if (role === "admin") {
     return [
       { href: "/admin", label: "Admin Home", icon: Shield, exact: true },
       { href: "/admin/Profiles", label: "Profiles", icon: Users },
       { href: "/admin/Inventory", label: "Vehicle Inventory", icon: Archive },
-      { href: "/admin/Spares", label: "Spare Inventory", icon: Users },
+      { href: "/admin/Spares", label: "Spare Inventory", icon: Wrench },
       { href: "/admin/Showroom", label: "Showrooms", icon: Building },
       { href: "/admin/Dealers", label: "Dealers", icon: Building2 },
       { href: "/admin/IssueStock", label: "Issue Inventory", icon: PackageOpen },
@@ -49,8 +54,11 @@ function getNavItems(role: string): NavItem[] {
 
   if (role === "dealer-admin") {
     return [
-      { href: "/admin/Dealers", label: "Dealers", icon: Building2 },
-      { href: "/admin/IssuedHistory", label: "Issued History", icon: History },
+      { href: `/dealer/${code}`, label: "Dealer Home", icon: Shield, exact: true },
+      { href: `/dealer/${code}/Request`, label: "Request Inventory", icon: ArchiveRestore},
+      { href: `/dealer/${code}/Customer`, label: "Customer Invoice", icon: Users },
+      { href: `/dealer/${code}/Company`, label: "Company Invoice", icon: Building},
+      { href: `/dealer/${code}/Analytics`, label: "Analytics", icon: ChartNoAxesCombined}
     ];
   }
 
@@ -60,12 +68,12 @@ function getNavItems(role: string): NavItem[] {
   ];
 }
 
-export default function Sidebar({ role }: Props) {
+export default function Sidebar({ role, email, code }: Props) {
   const pathname = usePathname();
 
   if (!role) return null;
 
-  const navItems = getNavItems(role);
+  const navItems = getNavItems(role, code);
 
   return (
     <div className="sticky top-0 z-20 flex h-screen w-72 flex-col justify-between border-r border-slate-200 bg-slate-50 p-4 transition-colors dark:border-white/10 dark:bg-[#080B14]">
@@ -91,6 +99,8 @@ export default function Sidebar({ role }: Props) {
                 {role === "admin"
                   ? "Full inventory & access control"
                   : "Daily operations center"}
+                  <br/>
+                {email}  
               </p>
             </div>
           </div>

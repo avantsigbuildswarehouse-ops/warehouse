@@ -82,6 +82,35 @@ export async function POST(req: Request) {
         throw new Error("No bikes were updated — status mismatch or invalid engine numbers");
       }
 
+      // 📉 DECREMENT warehouse_quantity for each model
+      const modelGroups = new Map<string, number>();
+      updatedBikes.forEach((bike: any) => {
+        const count = (modelGroups.get(bike.model_code) || 0) + 1;
+        modelGroups.set(bike.model_code, count);
+      });
+
+      for (const [modelCode, count] of modelGroups.entries()) {
+        const { data: model, error: getErr } = await supabaseAdmin
+          .schema("warehouse")
+          .from("vehicle_model_codes")
+          .select("warehouse_quantity")
+          .eq("model_code", modelCode)
+          .single();
+
+        if (getErr) throw new Error(getErr.message);
+
+        const currentQty = Number(model?.warehouse_quantity || 0);
+        const newQty = Math.max(0, currentQty - count); // Never go below 0
+
+        const { error: qtyErr } = await supabaseAdmin
+          .schema("warehouse")
+          .from("vehicle_model_codes")
+          .update({ warehouse_quantity: newQty })
+          .eq("model_code", modelCode);
+
+        if (qtyErr) throw new Error(qtyErr.message);
+      }
+
       return NextResponse.json({
         success: true,
         count: updatedBikes.length,
@@ -147,6 +176,36 @@ export async function POST(req: Request) {
 
       if (!updatedSpares || updatedSpares.length === 0) {
         throw new Error("No spares were updated — status mismatch or invalid serial numbers");
+      }
+
+      // 📉 DECREMENT warehouse_quantity for each spare
+      const spareGroups = new Map<string, number>();
+      updatedSpares.forEach((spare: any) => {
+        const count = (spareGroups.get(spare.spare_code) || 0) + 1;
+        spareGroups.set(spare.spare_code, count);
+      });
+
+      for (const [spareCode, count] of spareGroups.entries()) {
+        // Get model_code for this spare (needed for query)
+        const { data: spare, error: getErr } = await supabaseAdmin
+          .schema("warehouse")
+          .from("vehicle_spare_codes")
+          .select("model_code, warehouse_quantity")
+          .eq("spare_code", spareCode)
+          .single();
+
+        if (getErr) throw new Error(getErr.message);
+
+        const currentQty = Number(spare?.warehouse_quantity || 0);
+        const newQty = Math.max(0, currentQty - count); // Never go below 0
+
+        const { error: qtyErr } = await supabaseAdmin
+          .schema("warehouse")
+          .from("vehicle_spare_codes")
+          .update({ warehouse_quantity: newQty })
+          .eq("spare_code", spareCode);
+
+        if (qtyErr) throw new Error(qtyErr.message);
       }
 
       return NextResponse.json({

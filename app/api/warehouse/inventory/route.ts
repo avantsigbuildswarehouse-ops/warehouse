@@ -56,7 +56,7 @@ export async function POST(req: Request) {
   const { data: model, error: modelError } = await supabaseAdmin
     .schema("warehouse")
     .from("vehicle_model_codes")
-    .select("price, quantity")
+    .select("price, arrived_quantity, warehouse_quantity")
     .eq("model_code", model_code)
     .single();
 
@@ -91,12 +91,13 @@ export async function POST(req: Request) {
   }
 
   // increment quantity
-  const newQty = (model.quantity || 0) + bikes.length;
+  const newQty = (model.arrived_quantity || 0) + bikes.length;
+  const newQty2 = (model.warehouse_quantity || 0) + bikes.length;
 
   const { error: qtyError } = await supabaseAdmin
     .schema("warehouse")
     .from("vehicle_model_codes")
-    .update({ quantity: newQty })
+    .update({ arrived_quantity: newQty, warehouse_quantity: newQty2 })
     .eq("model_code", model_code);
 
   if (qtyError) {

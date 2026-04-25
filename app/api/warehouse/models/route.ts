@@ -43,7 +43,7 @@ export async function POST(req: Request) {
   const { data, error } = await supabaseAdmin
     .schema("warehouse")
     .from("vehicle_model_codes")
-    .insert({ model_name: name, model_code: code, price, quantity: 0 })
+    .insert({ model_name: name, model_code: code, price, arrived_quantity: 0, warehouse_quantity: 0 })
     .select()
     .single();
 

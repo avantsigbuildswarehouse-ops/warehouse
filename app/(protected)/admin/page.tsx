@@ -77,24 +77,24 @@ export default async function AdminPage() {
         <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
           <Card className="border-sky-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(239,246,255,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
             <CardHeader className="p-6">
-              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Total Bike Units</CardDescription>
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Vehicles Arrived</CardDescription>
               <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
                 <div className="rounded-xl bg-sky-100 p-2.5 dark:bg-sky-500/20">
                   <Bike className="size-6 text-sky-600 dark:text-sky-400" />
                 </div>
-                {formatNumber(vehicleInventory.summary.totalUnits)}
+                {formatNumber(models.reduce((sum, m) => sum + (Number(m.arrived_quantity) || 0), 0))}
               </CardTitle>
             </CardHeader>
           </Card>
 
-          <Card className="border-teal-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(240,253,250,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
+          <Card className="border-green-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(240,253,250,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
             <CardHeader className="p-6">
-              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Vehicle Models</CardDescription>
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">In Warehouse Now</CardDescription>
               <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
-                <div className="rounded-xl bg-teal-100 p-2.5 dark:bg-teal-500/20">
-                  <ShieldCheck className="size-6 text-teal-600 dark:text-teal-400" />
+                <div className="rounded-xl bg-green-100 p-2.5 dark:bg-green-500/20">
+                  <PackageOpen className="size-6 text-green-600 dark:text-green-400" />
                 </div>
-                {formatNumber(models.length)}
+                {formatNumber(models.reduce((sum, m) => sum + (Number(m.warehouse_quantity) || 0), 0))}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -157,9 +157,14 @@ export default async function AdminPage() {
                       </p>
                     </div>
 
-                    <Badge variant="outline" className="h-fit bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
-                      {formatNumber(Number(model.quantity ?? 0))} units
-                    </Badge>
+                    <div className="flex gap-2">
+                      <Badge className="h-fit bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">
+                        Arrived: {formatNumber(Number(model.arrived_quantity ?? 0))}
+                      </Badge>
+                      <Badge className="h-fit bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300">
+                        Warehouse: {formatNumber(Number(model.warehouse_quantity ?? 0))}
+                      </Badge>
+                    </div>
                   </div>
                 ))
               )}
@@ -205,6 +210,15 @@ export default async function AdminPage() {
                       <p className="text-sm font-medium text-slate-600 dark:text-slate-300 flex-1 truncate">
                         S/N: <span className="text-slate-900 dark:text-white font-mono text-xs">{item.serial_number}</span>
                       </p>
+                    </div>
+
+                    <div className="mt-2 flex gap-2 flex-wrap">
+                      <Badge className="h-fit text-xs bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">
+                        Arrived: {formatNumber(Number(item.arrived_quantity ?? 0))}
+                      </Badge>
+                      <Badge className="h-fit text-xs bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300">
+                        Stock: {formatNumber(Number(item.warehouse_quantity ?? 0))}
+                      </Badge>
                     </div>
                   </div>
                 ))
