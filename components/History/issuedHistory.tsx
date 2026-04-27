@@ -21,6 +21,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import PaginationControls from "@/components/ui/pagination-controls";
 
 import {
   generateIssueDocument,
@@ -64,9 +65,7 @@ export default function IssuedHistoryPage() {
   const pageSize = 10;
 
   useEffect(() => {
-    setLoading(true);
-    setCurrentPage(1);
-    fetch(`/api/warehouse/issued-history?type=${targetFilter}&page=1&limit=${pageSize}`)
+    fetch(`/api/warehouse/issued-history?type=${targetFilter}&page=${currentPage}&limit=${pageSize}`)
       .then((r) => r.json())
       .then((data) => {
         setGroups(data.groups || []);
@@ -76,19 +75,19 @@ export default function IssuedHistoryPage() {
         }
         setLoading(false);
       });
-  }, [targetFilter]);
+  }, [targetFilter, currentPage]);
 
   function goToPage(page: number) {
     if (page >= 1 && page <= totalPages) {
       setLoading(true);
       setCurrentPage(page);
-      fetch(`/api/warehouse/issued-history?type=${targetFilter}&page=${page}&limit=${pageSize}`)
-        .then((r) => r.json())
-        .then((data) => {
-          setGroups(data.groups || []);
-          setLoading(false);
-        });
     }
+  }
+
+  function changeFilter(filter: "all" | "showroom" | "dealer") {
+    setLoading(true);
+    setTargetFilter(filter);
+    setCurrentPage(1);
   }
 
   const summary = useMemo(() => {
@@ -152,7 +151,7 @@ export default function IssuedHistoryPage() {
                 key={f}
                 size="sm"
                 variant={targetFilter === f ? "default" : "outline"}
-                onClick={() => setTargetFilter(f)}
+                onClick={() => changeFilter(f)}
                 className="capitalize"
               >
                 {f === "all" ? "All" : f === "showroom" ? "Showrooms" : "Dealers"}
@@ -356,45 +355,12 @@ export default function IssuedHistoryPage() {
               </div>
             )}
             
-            {/* PAGINATION CONTROLS */}
-            {totalPages > 1 && (
-              <div className="mt-4 flex items-center justify-between text-sm border-t border-slate-200 dark:border-slate-700 pt-4">
-                <div className="text-slate-600 dark:text-slate-400">
-                  Page {currentPage} of {totalPages} ({totalGroups} total batches)
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={currentPage <= 1}
-                    onClick={() => goToPage(currentPage - 1)}
-                  >
-                    Previous
-                  </Button>
-                  {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                    const pageNum = i + 1;
-                    return (
-                      <Button
-                        key={pageNum}
-                        size="sm"
-                        variant={currentPage === pageNum ? "default" : "outline"}
-                        onClick={() => goToPage(pageNum)}
-                      >
-                        {pageNum}
-                      </Button>
-                    );
-                  })}
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={currentPage >= totalPages}
-                    onClick={() => goToPage(currentPage + 1)}
-                  >
-                    Next
-                  </Button>
-                </div>
-              </div>
-            )}
+            <PaginationControls
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={goToPage}
+              totalItemsLabel={`${totalGroups} total batches`}
+            />
           </CardContent>
         </Card>
       </div>

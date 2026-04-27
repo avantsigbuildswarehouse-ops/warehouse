@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Pencil, X, ShieldCheck, Loader2, CheckCircle2 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import PaginationControls from "@/components/ui/pagination-controls";
 
 type Profile = {
   id: string;
@@ -75,9 +76,12 @@ export default function ProfilesPage() {
         },
       });
       const data = await res.json();
-      setProfiles(Array.isArray(data) ? data : []);
-      setTotalProfiles(data.length);
-      setTotalPages(Math.ceil(data.length / pageSize));
+      const items = Array.isArray(data?.items) ? data.items : [];
+      const total = Number(data?.pagination?.total ?? items.length);
+      const pages = Number(data?.pagination?.totalPages ?? Math.max(1, Math.ceil(total / pageSize)));
+      setProfiles(items);
+      setTotalProfiles(total);
+      setTotalPages(Math.max(1, pages));
     } catch (e) {
       console.error(e);
     } finally {
@@ -319,43 +323,12 @@ export default function ProfilesPage() {
                   </tbody>
                 </table>
               
-                {/* PAGINATION CONTROLS */}
-                <div className="mt-4 flex items-center justify-between text-sm">
-                  <div className="text-slate-600 dark:text-slate-400">
-                    Page {currentPage} of {totalPages || 1}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={currentPage <= 1}
-                      onClick={() => goToPage(currentPage - 1)}
-                    >
-                      Previous
-                    </Button>
-                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                      const pageNum = i + 1;
-                      return (
-                        <Button
-                          key={pageNum}
-                          size="sm"
-                          variant={currentPage === pageNum ? "default" : "outline"}
-                          onClick={() => goToPage(pageNum)}
-                        >
-                          {pageNum}
-                        </Button>
-                      );
-                    })}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      disabled={currentPage >= totalPages}
-                      onClick={() => goToPage(currentPage + 1)}
-                    >
-                      Next
-                    </Button>
-                  </div>
-                </div>
+                <PaginationControls
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={goToPage}
+                  totalItemsLabel={`${totalProfiles} total users`}
+                />
               </div>
             )}
           </CardContent>

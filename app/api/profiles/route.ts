@@ -36,10 +36,10 @@ export async function GET(req: Request) {
     const limit = parseInt(searchParams.get('limit') || '50', 10);
     const offset = (page - 1) * limit;
 
-    const { data, error } = await supabaseAdmin
+    const { data, error, count } = await supabaseAdmin
       .schema("public")
       .from("profiles")
-      .select("*")
+      .select("*", { count: "exact" })
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -50,8 +50,16 @@ export async function GET(req: Request) {
       );
     }
 
-    return NextResponse.json(data ?? []);
-  } catch (err) {
+    return NextResponse.json({
+      items: data ?? [],
+      pagination: {
+        page,
+        limit,
+        total: count ?? 0,
+        totalPages: Math.max(1, Math.ceil((count ?? 0) / limit)),
+      },
+    });
+  } catch {
     return NextResponse.json(
       { error: 'Unauthorized' },
       { status: 401 }
@@ -80,7 +88,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch {
     return NextResponse.json(
       { error: "Invalid request" },
       { status: 400 }

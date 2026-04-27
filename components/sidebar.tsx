@@ -17,6 +17,7 @@ import {
   Wrench,
   ArchiveRestore,
   ChartNoAxesCombined,
+  ClipboardList,
 } from "lucide-react";
 
 import LogoutButton from "./logout-button";
@@ -56,9 +57,21 @@ function getNavItems(role: string, code: string): NavItem[] {
     return [
       { href: `/dealer/${code}`, label: "Dealer Home", icon: Shield, exact: true },
       { href: `/dealer/${code}/Request`, label: "Request Inventory", icon: ArchiveRestore},
+      { href: `/dealer/${code}/MyRequests`, label: "Request Status", icon: ClipboardList},
       { href: `/dealer/${code}/Customer`, label: "Customer Invoice", icon: Users },
       { href: `/dealer/${code}/Company`, label: "Company Invoice", icon: Building},
       { href: `/dealer/${code}/Analytics`, label: "Analytics", icon: ChartNoAxesCombined}
+    ];
+  }
+
+    if (role === "showroom-admin") {
+    return [
+      { href: `/showroom/${code}`, label: "Showroom Home", icon: Shield, exact: true },
+      { href: `/showroom/${code}/Request`, label: "Request Inventory", icon: ArchiveRestore},
+      { href: `/showroom/${code}/MyRequests`, label: "Request Status", icon: ClipboardList},
+      { href: `/showroom/${code}/Customer`, label: "Customer Invoice", icon: Users },
+      { href: `/showroom/${code}/Company`, label: "Company Invoice", icon: Building},
+      { href: `/showroom/${code}/Analytics`, label: "Analytics", icon: ChartNoAxesCombined}
     ];
   }
 
@@ -109,7 +122,7 @@ export default function Sidebar({ role, email, code }: Props) {
         <Separator className="bg-slate-200/60 dark:bg-slate-800 flex-shrink-0" />
 
         {/* Navigation */}
-        <nav className="flex flex-col gap-1.5 overflow-y-auto min-h-0 flex-1 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-200 dark:[&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-track]:bg-transparent">
+        <nav className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.exact

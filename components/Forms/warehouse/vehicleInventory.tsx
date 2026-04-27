@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import PaginationControls from "@/components/ui/pagination-controls";
 
 type VehicleModel = {
   model_code: string;
@@ -647,44 +648,12 @@ export default function VehicleInventoryForm() {
                     </tbody>
                   </table>
                 </div>
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between text-sm border-t border-slate-200 dark:border-slate-700 pt-4">
-                    <div className="text-slate-600 dark:text-slate-400">
-                      Page {currentPage} of {totalPages}
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={currentPage <= 1}
-                        onClick={() => goToPage(currentPage - 1)}
-                      >
-                        Previous
-                      </Button>
-                      {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                        const pageNum = i + 1;
-                        return (
-                          <Button
-                            key={pageNum}
-                            size="sm"
-                            variant={currentPage === pageNum ? "default" : "outline"}
-                            onClick={() => goToPage(pageNum)}
-                          >
-                            {pageNum}
-                          </Button>
-                        );
-                      })}
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        disabled={currentPage >= totalPages}
-                        onClick={() => goToPage(currentPage + 1)}
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                )}
+                <PaginationControls
+                  currentPage={currentPage}
+                  totalPages={totalPages}
+                  onPageChange={goToPage}
+                  totalItemsLabel={`${visibleInventory.length} bikes`}
+                />
               </div>
             )}
           </CardContent>

@@ -81,6 +81,7 @@ export default function LoginPage() {
 
     if (profile.role === "admin") router.replace("/admin");
     else if (profile.role === "dealer-admin") router.replace(`/dealer/${profile.code}`);
+    else if (profile.role === "showroom-admin") router.replace(`/showroom/${profile.code}`);
     else if (profile.role === "frontdesk") router.replace("/frontdesk");
     else router.replace("/dashboard");
   }

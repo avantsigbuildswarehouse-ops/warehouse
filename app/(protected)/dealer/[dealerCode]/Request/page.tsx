@@ -1,10 +1,10 @@
-import RequestStockForm from '@/components/Forms/dealer/requestStockForm'
+import DealerRequestStockForm from '@/components/Forms/dealer/requestStockForm'
 
 
 const page = () => {
   return (
     <div>
-      <RequestStockForm />
+      <DealerRequestStockForm />
     </div>
   )
 }

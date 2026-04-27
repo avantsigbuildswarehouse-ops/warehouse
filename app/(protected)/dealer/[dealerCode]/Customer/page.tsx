@@ -1,11 +1,10 @@
 
-import CustomerRegistrationForm from '@/components/Forms/customer/customerRegistration'
-
+import SellToCustomerForm from "@/components/Forms/sales/sell-to-customer";
 
 const page = () => {
   return (
     <div>
-      <CustomerRegistrationForm />
+      <SellToCustomerForm />
     </div>
   )
 }
