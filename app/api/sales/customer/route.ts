@@ -5,6 +5,12 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireSalesRoute } from "@/lib/auth/require-sales-route";
 
 type SaleItem = { type: "Bike" | "Spare"; id: string };
+type SoldBikeRow = {
+  id: string;
+  engine_number: string | null;
+  chassis_number: string | null;
+  color: string | null;
+};
 
 export async function POST(req: Request) {
   const auth = await requireSalesRoute();
@@ -101,7 +107,13 @@ export async function POST(req: Request) {
     // Verify inventory items exist + are unsold
     const [bikeRows, spareRows] = await Promise.all([
       bikeIds.length
-        ? supabaseAdmin.schema(schema).from(vehicleTable).select("id").eq(codeField, targetCode).in("id", bikeIds).is("sold_at", null)
+        ? supabaseAdmin
+            .schema(schema)
+            .from(vehicleTable)
+            .select("id, engine_number, chassis_number, color")
+            .eq(codeField, targetCode)
+            .in("id", bikeIds)
+            .is("sold_at", null)
         : Promise.resolve({ data: [], error: null }),
       spareIds.length
         ? supabaseAdmin.schema(schema).from(spareTable).select("id").eq(codeField, targetCode).in("id", spareIds).is("sold_at", null)
@@ -145,7 +157,23 @@ export async function POST(req: Request) {
     if (upBikes.error) return NextResponse.json({ error: upBikes.error.message }, { status: 500 });
     if (upSpares.error) return NextResponse.json({ error: upSpares.error.message }, { status: 500 });
 
-    return NextResponse.json({ success: true, saleId: sale.id });
+    const bikeWarrantyQr = ((bikeRows.data ?? []) as SoldBikeRow[]).map((bike) => {
+      const params = new URLSearchParams({
+        engine: bike.engine_number ?? "",
+        chassis: bike.chassis_number ?? "",
+        soldAt,
+      });
+      return {
+        inventoryId: bike.id,
+        engine_number: bike.engine_number,
+        chassis_number: bike.chassis_number,
+        color: bike.color,
+        sold_at: soldAt,
+        warranty_url: `/warranty/vehicle?${params.toString()}`,
+      };
+    });
+
+    return NextResponse.json({ success: true, saleId: sale.id, bikeWarrantyQr });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Invalid request";
     return NextResponse.json({ error: message }, { status: 400 });

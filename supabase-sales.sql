@@ -3,6 +3,97 @@
 -- Supports selling from dealer/showroom inventories
 -- =========================================================
 
+-- 0) Master buyers
+CREATE TABLE IF NOT EXISTS public."Customers" (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  first_name text NOT NULL,
+  last_name text NOT NULL,
+  phone_number text NOT NULL,
+  address text NULL,
+  nic text NULL
+);
+
+CREATE TABLE IF NOT EXISTS public."Companies" (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  created_at timestamptz NOT NULL DEFAULT now(),
+  company_name text NOT NULL,
+  company_email text NOT NULL,
+  company_contact text NULL,
+  address text NULL,
+  "BR_no" text NULL,
+  "VAT_no" text NULL
+);
+
+CREATE INDEX IF NOT EXISTS customers_phone_idx ON public."Customers"(phone_number);
+CREATE INDEX IF NOT EXISTS companies_email_idx ON public."Companies"(company_email);
+
+-- Optional compatibility view if you refer to singular "public.Company"
+CREATE OR REPLACE VIEW public."Company" AS
+SELECT * FROM public."Companies";
+
+-- Optional uniqueness constraints (recommended)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'customers_phone_unique'
+  ) THEN
+    ALTER TABLE public."Customers" ADD CONSTRAINT customers_phone_unique UNIQUE (phone_number);
+  END IF;
+END $$;
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'companies_email_unique'
+  ) THEN
+    ALTER TABLE public."Companies" ADD CONSTRAINT companies_email_unique UNIQUE (company_email);
+  END IF;
+END $$;
+
+-- RLS + permissions for Customers / Companies
+ALTER TABLE public."Customers" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public."Companies" ENABLE ROW LEVEL SECURITY;
+
+-- app roles
+GRANT USAGE ON SCHEMA public TO authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE public."Customers" TO authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE ON TABLE public."Companies" TO authenticated, service_role;
+GRANT SELECT ON TABLE public."Company" TO authenticated, service_role;
+
+-- Policies: authenticated users can read/insert/update, service_role bypasses via Supabase key
+DROP POLICY IF EXISTS customers_select_auth ON public."Customers";
+CREATE POLICY customers_select_auth ON public."Customers"
+FOR SELECT TO authenticated
+USING (true);
+
+DROP POLICY IF EXISTS customers_insert_auth ON public."Customers";
+CREATE POLICY customers_insert_auth ON public."Customers"
+FOR INSERT TO authenticated
+WITH CHECK (true);
+
+DROP POLICY IF EXISTS customers_update_auth ON public."Customers";
+CREATE POLICY customers_update_auth ON public."Customers"
+FOR UPDATE TO authenticated
+USING (true)
+WITH CHECK (true);
+
+DROP POLICY IF EXISTS companies_select_auth ON public."Companies";
+CREATE POLICY companies_select_auth ON public."Companies"
+FOR SELECT TO authenticated
+USING (true);
+
+DROP POLICY IF EXISTS companies_insert_auth ON public."Companies";
+CREATE POLICY companies_insert_auth ON public."Companies"
+FOR INSERT TO authenticated
+WITH CHECK (true);
+
+DROP POLICY IF EXISTS companies_update_auth ON public."Companies";
+CREATE POLICY companies_update_auth ON public."Companies"
+FOR UPDATE TO authenticated
+USING (true)
+WITH CHECK (true);
+
 -- 1) Sales order headers
 CREATE TABLE IF NOT EXISTS public.sales_orders (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),

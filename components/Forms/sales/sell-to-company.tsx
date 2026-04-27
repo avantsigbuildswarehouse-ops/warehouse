@@ -2,12 +2,15 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
+import Image from "next/image";
 import { CheckCircle2, Package, ShoppingCart, Truck, Wrench } from "lucide-react";
+import QRCode from "qrcode";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { formatMoneyForInput, moneyInputToNumber, sanitizeMoneyInput } from "@/components/Forms/sales/sales-utils";
 
 type VehicleRow = {
   id: string;
@@ -56,12 +59,13 @@ export default function SellToCompanyForm() {
   const [vatNo, setVatNo] = useState("");
 
   // payment fields
-  const [basePrice, setBasePrice] = useState<number>(0);
-  const [vat, setVat] = useState<number>(0);
-  const [registrationFee, setRegistrationFee] = useState<number>(0);
-  const [discount, setDiscount] = useState<number>(0);
-  const [advancePayment, setAdvancePayment] = useState<number>(0);
+  const [basePrice, setBasePrice] = useState<string>("");
+  const [vat, setVat] = useState<string>("");
+  const [registrationFee, setRegistrationFee] = useState<string>("");
+  const [discount, setDiscount] = useState<string>("");
+  const [advancePayment, setAdvancePayment] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Bank transfer");
+  const [warrantyQr, setWarrantyQr] = useState<Array<{ id: string; label: string; url: string }>>([]);
 
   useEffect(() => {
     const load = async () => {
@@ -117,11 +121,11 @@ export default function SellToCompanyForm() {
           },
           items,
           payment: {
-            base_price: basePrice,
-            vat,
-            registration_fee: registrationFee,
-            discount,
-            advance_payment: advancePayment,
+            base_price: moneyInputToNumber(basePrice),
+            vat: moneyInputToNumber(vat),
+            registration_fee: moneyInputToNumber(registrationFee),
+            discount: moneyInputToNumber(discount),
+            advance_payment: moneyInputToNumber(advancePayment),
             payment_method: paymentMethod,
           },
         }),
@@ -132,6 +136,15 @@ export default function SellToCompanyForm() {
       setSuccess(data.saleId);
       setCartBikes(new Set());
       setCartSpares(new Set());
+      const qrRows = ((data.bikeWarrantyQr || []) as Array<{ inventoryId: string; engine_number: string | null; chassis_number: string | null; warranty_url: string }>);
+      const qrCodes = await Promise.all(
+        qrRows.map(async (row) => ({
+          id: row.inventoryId,
+          label: `${row.engine_number || "-"} / ${row.chassis_number || "-"}`,
+          url: await QRCode.toDataURL(new URL(row.warranty_url, window.location.origin).toString()),
+        }))
+      );
+      setWarrantyQr(qrCodes);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Failed";
       alert(message);
@@ -216,6 +229,7 @@ export default function SellToCompanyForm() {
                             </div>
                             <p className="mt-1 text-xs font-mono text-slate-600 dark:text-slate-300">ENG: {v.engine_number}</p>
                             <p className="text-xs font-mono text-slate-600 dark:text-slate-300">CHS: {v.chassis_number}</p>
+                            <p className="text-xs text-slate-600 dark:text-slate-300">Color: {v.color || "-"}</p>
                           </button>
                         );
                       })
@@ -317,23 +331,23 @@ export default function SellToCompanyForm() {
                   <div className="grid gap-4 md:grid-cols-2">
                     <div className="space-y-2">
                       <Label>Base price</Label>
-                      <Input type="number" value={basePrice} onChange={(e) => setBasePrice(Number(e.target.value || 0))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                      <Input value={basePrice} inputMode="decimal" placeholder="0.00" onChange={(e) => setBasePrice(sanitizeMoneyInput(e.target.value))} onBlur={() => setBasePrice(formatMoneyForInput(basePrice))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
                     </div>
                     <div className="space-y-2">
                       <Label>VAT</Label>
-                      <Input type="number" value={vat} onChange={(e) => setVat(Number(e.target.value || 0))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                      <Input value={vat} inputMode="decimal" placeholder="0.00" onChange={(e) => setVat(sanitizeMoneyInput(e.target.value))} onBlur={() => setVat(formatMoneyForInput(vat))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
                     </div>
                     <div className="space-y-2">
                       <Label>Registration fee</Label>
-                      <Input type="number" value={registrationFee} onChange={(e) => setRegistrationFee(Number(e.target.value || 0))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                      <Input value={registrationFee} inputMode="decimal" placeholder="0.00" onChange={(e) => setRegistrationFee(sanitizeMoneyInput(e.target.value))} onBlur={() => setRegistrationFee(formatMoneyForInput(registrationFee))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
                     </div>
                     <div className="space-y-2">
                       <Label>Discount</Label>
-                      <Input type="number" value={discount} onChange={(e) => setDiscount(Number(e.target.value || 0))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                      <Input value={discount} inputMode="decimal" placeholder="0.00" onChange={(e) => setDiscount(sanitizeMoneyInput(e.target.value))} onBlur={() => setDiscount(formatMoneyForInput(discount))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
                     </div>
                     <div className="space-y-2">
                       <Label>Advance</Label>
-                      <Input type="number" value={advancePayment} onChange={(e) => setAdvancePayment(Number(e.target.value || 0))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                      <Input value={advancePayment} inputMode="decimal" placeholder="0.00" onChange={(e) => setAdvancePayment(sanitizeMoneyInput(e.target.value))} onBlur={() => setAdvancePayment(formatMoneyForInput(advancePayment))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
                     </div>
                     <div className="space-y-2">
                       <Label>Method</Label>
@@ -345,6 +359,20 @@ export default function SellToCompanyForm() {
                 <Button disabled={submitting || cartCount === 0 || !companyName || !companyEmail} onClick={handleSubmit} className="w-full">
                   {submitting ? "Processing..." : "Complete sale"}
                 </Button>
+
+                {warrantyQr.length > 0 && (
+                  <div className="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">Warranty QR (bikes only)</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {warrantyQr.map((qr) => (
+                        <div key={qr.id} className="rounded-lg border border-slate-200 p-3 dark:border-white/10">
+                          <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{qr.label}</p>
+                          <Image src={qr.url} alt={`Warranty QR ${qr.label}`} width={144} height={144} className="h-36 w-36 rounded bg-white p-1" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </div>
