@@ -43,6 +43,7 @@ function getNavItems(role: string, code: string): NavItem[] {
   if (role === "admin") {
     return [
       { href: "/admin", label: "Admin Home", icon: Shield, exact: true },
+      { href: "/admin/Analytics", label: "Analytics", icon: ChartNoAxesCombined },
       { href: "/admin/Profiles", label: "Profiles", icon: Users },
       { href: "/admin/Inventory", label: "Vehicle Inventory", icon: Archive },
       { href: "/admin/Spares", label: "Spare Inventory", icon: Wrench },

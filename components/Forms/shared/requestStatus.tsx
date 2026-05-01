@@ -76,17 +76,29 @@ export default function RequestStatus({
 }) {
   const [requests, setRequests] = useState<GroupedRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
     const fetchRequests = async () => {
       try {
+        setError(null);
         const key = targetType === "dealer" ? "dealerCode" : "showroomCode";
         const apiBase = targetType === "dealer" ? "/api/dealers/reqStats" : "/api/showrooms/reqStats";
         const res = await fetch(`${apiBase}?${key}=${encodeURIComponent(targetCode)}`);
         const data = await res.json();
-        if (data.success) setRequests(data.requests || []);
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || "Failed to load request history");
+        }
+        setRequests(data.requests || []);
+      } catch (caughtError) {
+        setRequests([]);
+        setError(
+          caughtError instanceof Error
+            ? caughtError.message
+            : "Failed to load request history"
+        );
       } finally {
         setLoading(false);
       }
@@ -174,6 +186,12 @@ export default function RequestStatus({
           <StatCard label="Rejected" value={stats.rejected} icon={AlertCircle} variant="red" />
           <StatCard label="Total Value" value={`Rs ${formatMoney(stats.totalValue)}`} icon={Package} variant="indigo" />
         </div>
+
+        {error ? (
+          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300">
+            {error}
+          </div>
+        ) : null}
 
         <Card className="overflow-hidden border border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900/40">
           <CardHeader className="border-b border-slate-100 px-6 py-5 dark:border-white/5">

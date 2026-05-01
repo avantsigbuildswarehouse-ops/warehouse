@@ -1,9 +1,13 @@
 import "server-only";
 import { NextResponse } from "next/server";
 import { cleanupExpiredRequests, issueRequest, releaseRequest, updateRequestStatus } from "@/lib/request-lifecycle";
+import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 
 export async function POST(req: Request) {
   try {
+    const authError = await requireAdminRoute();
+    if (authError) return authError;
+
     const body = await req.json();
     const action = body?.action as string | undefined;
     const referenceNo = body?.referenceNo as string | undefined;

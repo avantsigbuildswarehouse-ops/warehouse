@@ -27,7 +27,8 @@ type VehicleModel = {
   model_code: string;
   model_name: string;
   price: number | string | null;
-  quantity: number | null;
+  warehouse_quantity: number | null;
+  arrived_quantity: number | null;
 };
 
 type SpareCode = {
@@ -421,7 +422,7 @@ export default function SparesInventory() {
                     </p>
                     <p className="mt-3 text-sm text-slate-600">
                       Vehicle stock on hand:{" "}
-                      {formatNumber(Number(selectedModel.quantity ?? 0))}
+                      {formatNumber(Number(selectedModel.warehouse_quantity ?? 0))}
                     </p>
                   </div>
                 ) : null}

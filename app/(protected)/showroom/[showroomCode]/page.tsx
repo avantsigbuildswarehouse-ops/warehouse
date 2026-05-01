@@ -80,7 +80,7 @@ async function getShowroomStock(showroomCode: string): Promise<StockData> {
     const totalSpares = (spares || []).length;
     const lastIssue =
       [...(vehicles || []), ...(spares || [])]
-        .map((item: any) => item.issued_at)
+        .map((item: { issued_at?: string | null }) => item.issued_at)
         .filter(Boolean)
         .sort()
         .pop() || null;
@@ -114,8 +114,8 @@ export default async function ShowroomStockPage({
 
   try {
     stockData = await getShowroomStock(showroomCode);
-  } catch (err: any) {
-    error = err.message || "Something went wrong";
+  } catch (err: unknown) {
+    error = err instanceof Error ? err.message : "Something went wrong";
   }
 
   if (error) {

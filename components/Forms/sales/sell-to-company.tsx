@@ -49,6 +49,7 @@ export default function SellToCompanyForm() {
   const [cartSpares, setCartSpares] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // company fields
   const [companyName, setCompanyName] = useState("");
@@ -71,11 +72,16 @@ export default function SellToCompanyForm() {
     const load = async () => {
       setLoading(true);
       setSuccess(null);
+      setErrorMessage(null);
       const res = await fetch(`/api/sales/inventory?targetType=${targetType}&targetCode=${encodeURIComponent(targetCode)}`);
       const data = await res.json();
       if (res.ok) {
         setVehicles(data.vehicles || []);
         setSpares(data.spares || []);
+      } else {
+        setVehicles([]);
+        setSpares([]);
+        setErrorMessage(data.error || "Failed to load available inventory");
       }
       setLoading(false);
     };
@@ -100,6 +106,7 @@ export default function SellToCompanyForm() {
     if (!companyName || !companyEmail || cartCount === 0) return;
     setSubmitting(true);
     setSuccess(null);
+    setErrorMessage(null);
     try {
       const items = [
         ...Array.from(cartBikes).map((id) => ({ type: "Bike" as const, id })),
@@ -147,7 +154,7 @@ export default function SellToCompanyForm() {
       setWarrantyQr(qrCodes);
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Failed";
-      alert(message);
+      setErrorMessage(message);
     } finally {
       setSubmitting(false);
     }
@@ -176,6 +183,15 @@ export default function SellToCompanyForm() {
                 Sale completed
               </CardTitle>
               <CardDescription className="text-emerald-700 dark:text-emerald-300">Sale ID: {success}</CardDescription>
+            </CardHeader>
+          </Card>
+        )}
+
+        {errorMessage && (
+          <Card className="border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-900/20">
+            <CardHeader>
+              <CardTitle className="text-red-800 dark:text-red-300">Action failed</CardTitle>
+              <CardDescription className="text-red-700 dark:text-red-300">{errorMessage}</CardDescription>
             </CardHeader>
           </Card>
         )}

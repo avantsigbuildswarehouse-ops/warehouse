@@ -80,7 +80,7 @@ async function getDealerStock(dealerCode: string): Promise<StockData> {
     const totalSpares = (spares || []).length;
     const lastIssue =
       [...(vehicles || []), ...(spares || [])]
-        .map((item: any) => item.issued_at)
+        .map((item: { issued_at?: string | null }) => item.issued_at)
         .filter(Boolean)
         .sort()
         .pop() || null;
@@ -114,8 +114,8 @@ export default async function DealerStockPage({
 
   try {
     stockData = await getDealerStock(dealerCode);
-  } catch (err: any) {
-    error = err.message || "Something went wrong";
+  } catch (err: unknown) {
+    error = err instanceof Error ? err.message : "Something went wrong";
   }
 
   if (error) {
