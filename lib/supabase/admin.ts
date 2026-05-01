@@ -1,8 +1,23 @@
 import { createClient } from "@supabase/supabase-js";
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_ROLE;
+
+if (!supabaseUrl) {
+  throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
+}
+
+if (!serviceRoleKey) {
+  throw new Error(
+    "Missing SUPABASE_SERVICE_ROLE_KEY (or legacy NEXT_PUBLIC_SUPABASE_ROLE)"
+  );
+}
+
 export const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ROLE!, // MUST be this (NOT anon)
+  supabaseUrl,
+  serviceRoleKey,
   {
     auth: {
       autoRefreshToken: false,
