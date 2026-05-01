@@ -1,4 +1,4 @@
-import "server-only";
+//;
 
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { getSpareInventoryDetails, getVehicleInventoryDetails, getVehicleModels } from "@/lib/warehouse/admin-data";

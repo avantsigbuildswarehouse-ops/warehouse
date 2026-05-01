@@ -1,5 +1,4 @@
 // app/api/dealers/requests/route.ts
-import "server-only";
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin"; // Use the same admin client
 import { cleanupExpiredRequests } from "@/lib/request-lifecycle";

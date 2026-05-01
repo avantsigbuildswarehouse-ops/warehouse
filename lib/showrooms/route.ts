@@ -1,4 +1,4 @@
-import "server-only";
+//;
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export type Showroom = {

@@ -12,6 +12,10 @@ type VehicleRequestRow = {
   price: number | string | null;
   model_code: string;
   engine_number: string;
+  chassis_number: string;
+  color: string | null;
+  yom: string | null;
+  version: string | null;
   dealer_code?: string;
   showroom_code?: string;
 };

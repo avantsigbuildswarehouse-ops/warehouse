@@ -24,8 +24,7 @@ export async function getUserRole() {
     }
 
     return data.role;
-  } catch (error) {
-    console.error("Error getting user role:", error);
+  } catch {
     return null;
   }
 }

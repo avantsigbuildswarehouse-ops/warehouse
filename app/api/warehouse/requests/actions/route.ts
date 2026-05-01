@@ -1,4 +1,4 @@
-import "server-only";
+//;
 import { NextResponse } from "next/server";
 import { cleanupExpiredRequests, issueRequest, releaseRequest, updateRequestStatus } from "@/lib/request-lifecycle";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
