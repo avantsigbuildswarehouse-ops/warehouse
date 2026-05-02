@@ -22,11 +22,23 @@ export async function proxy(req: NextRequest) {
     }
   );
 
-  await supabase.auth.getUser();
+  try {
+    await supabase.auth.getUser();
+  } catch {
+    // Avoid failing the whole request when Supabase is temporarily unavailable.
+    return res;
+  }
 
   return res;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    "/admin/:path*",
+    "/dealer/:path*",
+    "/showroom/:path*",
+    "/dashboard/:path*",
+    "/frontdesk/:path*",
+    "/api/:path*",
+  ],
 };

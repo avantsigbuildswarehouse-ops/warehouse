@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 type VehicleInventoryRow = {
   model_code: string;
@@ -11,6 +11,8 @@ type VehicleInventoryRow = {
   price: number | string;
   vehicle_model_codes?: { model_name?: string } | null;
 };
+
+const supabaseAdmin = getSupabaseAdmin();
 
 export async function GET() {
 

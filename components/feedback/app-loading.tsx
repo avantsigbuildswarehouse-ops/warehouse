@@ -28,7 +28,7 @@ export default function AppLoading() {
             alt="Avant Logo"
             width={180}
             height={52}
-            className="scale-150 object-contain drop-shadow-sm"
+            className="h-auto w-[180px] scale-150 object-contain drop-shadow-sm"
             priority
           />
         </motion.div>

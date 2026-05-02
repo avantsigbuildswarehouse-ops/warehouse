@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+
+const supabaseAdmin = getSupabaseAdmin();
 
 type VehicleInventoryRow = {
   model_code: string;

@@ -18,7 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { requireRole } from "@/lib/auth/require-role";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 type VehicleStock = {
   id: string;
@@ -57,6 +57,8 @@ function formatNumber(value: number) {
     maximumFractionDigits: 0,
   }).format(value);
 }
+
+const supabaseAdmin = getSupabaseAdmin();
 
 async function getDealerStock(dealerCode: string): Promise<StockData> {
   try {

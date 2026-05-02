@@ -1,7 +1,9 @@
 //;
 
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { getSpareInventoryDetails, getVehicleInventoryDetails, getVehicleModels } from "@/lib/warehouse/admin-data";
+
+const supabaseAdmin = getSupabaseAdmin();
 
 type InventoryVehicleRow = {
   id: string;

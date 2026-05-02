@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 type Profile = {
     id: string;
@@ -9,6 +9,8 @@ type Profile = {
     code: string;
     created_at: string; 
 }
+
+const supabaseAdmin = getSupabaseAdmin();
 
 export async function GET(req: Request) {
   try {

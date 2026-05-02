@@ -1,8 +1,10 @@
 //;
 
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireSalesRoute } from "@/lib/auth/require-sales-route";
+
+const supabaseAdmin = getSupabaseAdmin();
 
 export async function GET(req: Request) {
   const auth = await requireSalesRoute();

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 export async function GET(
   req: Request,
@@ -8,6 +8,7 @@ export async function GET(
   const { dealerCode } = await params;
   const { searchParams } = new URL(req.url);
   const limit = parseInt(searchParams.get('limit') || '1000', 10);
+  const supabaseAdmin = getSupabaseAdmin();
 
   const { data: vehicleStock, error: vehicleError } = await supabaseAdmin
     .schema("ASB showrooms")

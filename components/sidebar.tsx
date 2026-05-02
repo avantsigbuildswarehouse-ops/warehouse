@@ -102,7 +102,7 @@ export default function Sidebar({ role, email, code }: Props) {
               alt="Avant Logo"
               width={140}
               height={40}
-              className="object-contain scale-150 drop-shadow-sm light:invert"
+              className="h-auto w-[140px] object-contain scale-150 drop-shadow-sm"
               priority
             />
             <div className="space-y-2 w-full">

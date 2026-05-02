@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 type Dealer = {
   dealer_code: string;
@@ -11,6 +11,8 @@ type Dealer = {
   is_active: boolean;
   created_at?: string;
 };
+
+const supabaseAdmin = getSupabaseAdmin();
 
 /* ---------------- GET ALL DEALERS ---------------- */
 export async function GET(req: Request) {

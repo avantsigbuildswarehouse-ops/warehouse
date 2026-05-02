@@ -1,6 +1,6 @@
 // app/api/dealers/requests/route.ts
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin"; // Use the same admin client
+import { getSupabaseAdmin } from "@/lib/supabase/admin"; // Use the same admin client
 import { cleanupExpiredRequests } from "@/lib/request-lifecycle";
 
 type RequestRow = {
@@ -24,6 +24,8 @@ type GroupedRequest = {
   requested_at: string;
   items: RequestRow[];
 };
+
+const supabaseAdmin = getSupabaseAdmin();
 
 export async function GET(req: Request) {
   try {

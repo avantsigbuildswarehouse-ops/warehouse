@@ -1,5 +1,7 @@
 //;
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+
+const supabaseAdmin = getSupabaseAdmin();
 
 export type Showroom = {
   showroom_code: string;

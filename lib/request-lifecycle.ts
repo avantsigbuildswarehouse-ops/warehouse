@@ -1,4 +1,6 @@
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+
+const supabaseAdmin = getSupabaseAdmin();
 
 type RequestStatus = "PENDING" | "APPROVED" | "HOLD" | "ISSUED" | "REJECTED";
 type RequestKind = "dealer" | "showroom";

@@ -1,7 +1,9 @@
 // app/api/warehouse/spare-inventory/route.ts
 import { NextResponse } from "next/server";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+
+const supabaseAdmin = getSupabaseAdmin();
 
 type SparePayload = {
   serialNumber: string;

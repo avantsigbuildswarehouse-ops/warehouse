@@ -1,7 +1,7 @@
 //;
 
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireSalesRoute } from "@/lib/auth/require-sales-route";
 
 type SaleItem = { type: "Bike" | "Spare"; id: string };
@@ -11,6 +11,7 @@ type SoldBikeRow = {
   chassis_number: string | null;
   color: string | null;
 };
+const supabaseAdmin = getSupabaseAdmin();
 
 export async function POST(req: Request) {
   const auth = await requireSalesRoute();

@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getVehicleInventoryDetails } from "@/lib/warehouse/admin-data";
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+
+const supabaseAdmin = getSupabaseAdmin();
 
 type BikePayload = {
   engineNumber: string;

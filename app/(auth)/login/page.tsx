@@ -105,7 +105,7 @@ export default function LoginPage() {
               alt="Avant Logo" 
               width={160} 
               height={45} 
-              className="object-contain scale-200"
+              className="h-auto w-[160px] object-contain scale-200"
               priority
             />
           </div>

@@ -1,6 +1,8 @@
-//;
+import { cache } from "react";
 
-import { supabaseAdmin } from "@/lib/supabase/admin";
+import { getSupabaseAdmin } from "@/lib/supabase/admin";
+
+const supabaseAdmin = getSupabaseAdmin();
 
 type VehicleInventoryRow = {
   model_code: string;
@@ -42,7 +44,7 @@ function toNumber(value: number | string | null | undefined) {
   return 0;
 }
 
-export async function getVehicleModels() {
+export const getVehicleModels = cache(async function getVehicleModels() {
   const { data, error } = await supabaseAdmin
     .schema("warehouse")
     .from("vehicle_model_codes")
@@ -54,7 +56,7 @@ export async function getVehicleModels() {
   }
 
   return (data ?? []) as VehicleModelRow[];
-}
+});
 
 export async function getVehicleInventoryDetails() {
   const { data, error } = await supabaseAdmin
@@ -96,7 +98,7 @@ export async function getVehicleInventoryDetails() {
   };
 }
 
-export async function getSpareCodes(modelCode?: string) {
+export const getSpareCodes = cache(async function getSpareCodes(modelCode?: string) {
   let query = supabaseAdmin
     .schema("warehouse")
     .from("vehicle_spare_codes")
@@ -114,7 +116,7 @@ export async function getSpareCodes(modelCode?: string) {
   }
 
   return (data ?? []) as SpareCodeRow[];
-}
+});
 
 export async function getSpareInventoryDetails() {
   const { data, error } = await supabaseAdmin

@@ -1,8 +1,10 @@
 // app/api/showrooms/requests/route.ts
 //;
 import { NextResponse } from "next/server";
-import { supabaseAdmin } from "@/lib/supabase/admin"; // Use the same admin client
+import { getSupabaseAdmin } from "@/lib/supabase/admin"; // Use the same admin client
 import { cleanupExpiredRequests } from "@/lib/request-lifecycle";
+
+const supabaseAdmin = getSupabaseAdmin();
 
 type RequestRow = {
   reference_no: string;
