@@ -46,6 +46,8 @@ type StockData = {
   stats: {
     totalBikes: number;
     totalSpares: number;
+    soldVehiclesCount: number;
+    soldSparesCount: number;
     lastIssue: string | null;
   };
   vehicleStock: VehicleStock[];
@@ -66,6 +68,7 @@ async function getShowroomStock(showroomCode: string): Promise<StockData> {
       .schema("ASB showrooms")
       .from("showroom_vehicle_inventory")
       .select("*")
+      .is("sold_at", null)
       .eq("showroom_code", showroomCode);
 
     if (vehicleError) throw vehicleError;
@@ -74,12 +77,33 @@ async function getShowroomStock(showroomCode: string): Promise<StockData> {
       .schema("ASB showrooms")
       .from("showroom_spare_inventory")
       .select("*")
+      .is("sold_at", null)
       .eq("showroom_code", showroomCode);
 
     if (spareError) throw spareError;
 
+    const { data: sold_vehicles, error: sold_vehicleError } = await supabaseAdmin
+      .schema("ASB showrooms")
+      .from("showroom_vehicle_inventory")
+      .select("*")
+      .not("sold_at", "is", null) // not null
+      .eq("showroom_code", showroomCode);
+
+    if (sold_vehicleError) throw sold_vehicleError;
+
+    const { data: sold_spares, error: sold_spareError } = await supabaseAdmin
+      .schema("ASB showrooms")
+      .from("showroom_spare_inventory")
+      .select("*")
+      .not("sold_at", "is", null) // not null
+      .eq("showroom_code", showroomCode);
+
+    if (sold_spareError) throw sold_spareError;
+
     const totalBikes = (vehicles || []).length;
     const totalSpares = (spares || []).length;
+    const soldVehiclesCount = (sold_vehicles || []).length;
+    const soldSparesCount = (sold_spares || []).length;
     const lastIssue =
       [...(vehicles || []), ...(spares || [])]
         .map((item: { issued_at?: string | null }) => item.issued_at)
@@ -92,6 +116,8 @@ async function getShowroomStock(showroomCode: string): Promise<StockData> {
         totalBikes,
         totalSpares,
         lastIssue,
+        soldVehiclesCount,
+        soldSparesCount,
       },
       vehicleStock: (vehicles || []) as VehicleStock[],
       spareStock: (spares || []) as SpareStock[],
@@ -200,6 +226,20 @@ export default async function ShowroomStockPage({
             </CardHeader>
           </Card>
 
+          <Card className="border-sky-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(239,246,255,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
+            <CardHeader className="p-6">
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">
+                Total Bikes Sold
+              </CardDescription>
+              <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
+                <div className="rounded-xl bg-sky-100 p-2.5 dark:bg-sky-500/20">
+                  <Bike className="size-6 text-sky-600 dark:text-sky-400" />
+                </div>
+                {formatNumber(stockData.stats.soldVehiclesCount)}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+
           <Card className="border-green-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(240,253,250,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
             <CardHeader className="p-6">
               <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">
@@ -227,6 +267,20 @@ export default async function ShowroomStockPage({
                   <Wrench className="size-6 text-amber-600 dark:text-amber-400" />
                 </div>
                 {formatNumber(stockData.stats.totalSpares)}
+              </CardTitle>
+            </CardHeader>
+          </Card>
+
+          <Card className="border-sky-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(239,246,255,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
+            <CardHeader className="p-6">
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">
+                Total Spares Sold
+              </CardDescription>
+              <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
+                <div className="rounded-xl bg-sky-100 p-2.5 dark:bg-sky-500/20">
+                  <Bike className="size-6 text-sky-600 dark:text-sky-400" />
+                </div>
+                {formatNumber(stockData.stats.soldSparesCount)}
               </CardTitle>
             </CardHeader>
           </Card>
