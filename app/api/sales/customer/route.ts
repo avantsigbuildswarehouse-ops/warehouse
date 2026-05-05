@@ -31,7 +31,6 @@ export async function POST(req: Request) {
     const items = (body?.items || []) as SaleItem[];
     const payment = body?.payment as {
       base_price: number;
-      vat: number;
       registration_fee: number;
       discount: number;
       advance_payment: number;
@@ -74,11 +73,10 @@ export async function POST(req: Request) {
     if (customerErr) return NextResponse.json({ error: customerErr.message }, { status: 500 });
 
     const base = Number(payment.base_price || 0);
-    const vat = Number(payment.vat || 0);
     const reg = Number(payment.registration_fee || 0);
     const disc = Number(payment.discount || 0);
     const adv = Number(payment.advance_payment || 0);
-    const total = base + vat + reg - disc;
+    const total = base + reg - disc;
     const balance = total - adv;
 
     const { data: sale, error: saleErr } = await supabaseAdmin
@@ -89,7 +87,6 @@ export async function POST(req: Request) {
         target_type: targetType,
         target_code: targetCode,
         base_price: base,
-        vat,
         registration_fee: reg,
         discount: disc,
         advance_payment: adv,
@@ -158,23 +155,7 @@ export async function POST(req: Request) {
     if (upBikes.error) return NextResponse.json({ error: upBikes.error.message }, { status: 500 });
     if (upSpares.error) return NextResponse.json({ error: upSpares.error.message }, { status: 500 });
 
-    const bikeWarrantyQr = ((bikeRows.data ?? []) as SoldBikeRow[]).map((bike) => {
-      const params = new URLSearchParams({
-        engine: bike.engine_number ?? "",
-        chassis: bike.chassis_number ?? "",
-        soldAt,
-      });
-      return {
-        inventoryId: bike.id,
-        engine_number: bike.engine_number,
-        chassis_number: bike.chassis_number,
-        color: bike.color,
-        sold_at: soldAt,
-        warranty_url: `/warranty/vehicle?${params.toString()}`,
-      };
-    });
-
-    return NextResponse.json({ success: true, saleId: sale.id, bikeWarrantyQr });
+    return NextResponse.json({ success: true, saleId: sale.id});
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Invalid request";
     return NextResponse.json({ error: message }, { status: 400 });

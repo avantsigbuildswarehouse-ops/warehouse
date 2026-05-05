@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 
-const generateCompanyQuotationPdf = async (quotationData: any) => {
+const generateCompanyDeliveryNotePdf = async (deliveryData: any) => {
   const doc = new jsPDF("p", "mm", "a4");
 
   // Load logo
@@ -32,20 +32,18 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
 
   doc.setFont("times", "bold");
   doc.setFontSize(18);
-  doc.text("COMPANY QUOTATION", 105, 25, { align: "center" });
+  doc.text("DELIVERY NOTE", 105, 25, { align: "center" });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Quotation No:", 140, 16);
+  doc.text("Delivery No:", 140, 16);
   doc.text("Date:", 140, 22);
-  doc.text("Valid Until:", 140, 28);
+  doc.text("Reference No:", 140, 28);
 
   doc.setFont("helvetica", "bold");
-  doc.text(quotationData.id?.toString() || "-", 165, 16);
-  doc.text(new Date(quotationData.created_at || Date.now()).toLocaleDateString(), 165, 22);
-  const validUntil = new Date();
-  validUntil.setDate(validUntil.getDate() + 30);
-  doc.text(validUntil.toLocaleDateString(), 165, 28);
+  doc.text(deliveryData.id?.toString() || "-", 165, 16);
+  doc.text(new Date(deliveryData.created_at || Date.now()).toLocaleDateString(), 165, 22);
+  doc.text(deliveryData.reference_no?.toString() || "-", 165, 28);
 
   doc.setFont("helvetica", "normal");
   doc.text("Print Date:", 15, 35);
@@ -61,14 +59,12 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   doc.rect(15, y, 180, 10, "F");
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("COMPANY DETAILS", 18, y + 6);
+  doc.text("DELIVERY TO", 18, y + 6);
   y += 10;
 
-  const company = quotationData.company;
+  const company = deliveryData.company;
   const companyInfo = [
     { label: "Company Name", value: company?.company_name || "-" },
-    { label: "BR Number", value: company?.br_no?.toString() || "-" },
-    { label: "VAT Number", value: company?.vat_no?.toString() || "-" },
     { label: "Contact", value: company?.company_contact?.toString() || "-" },
     { label: "Email", value: company?.company_email || "-" },
     { label: "Address", value: company?.address?.toString() || "-" },
@@ -92,7 +88,7 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   doc.rect(15, y, 180, 10, "F");
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("ITEMS", 18, y + 6);
+  doc.text("ITEMS DELIVERED", 18, y + 6);
   y += 10;
 
   // Table headers
@@ -103,11 +99,12 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   doc.text("Type", 18, y + 5);
   doc.text("Model/Code", 50, y + 5);
   doc.text("Identifier", 100, y + 5);
-  doc.text("Price (LKR)", 155, y + 5, { align: "right" });
+  doc.text("Quantity", 155, y + 5);
+  doc.text("Status", 175, y + 5);
   y += 8;
 
   // Items
-  const items = quotationData.items || [];
+  const items = deliveryData.items || [];
   items.forEach((item: any) => {
     if (y > 250) {
       doc.addPage();
@@ -119,48 +116,56 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
     doc.text(item.type, 18, y + 5);
     doc.text(item.model_code, 50, y + 5);
     doc.text(item.identifier, 100, y + 5);
-    doc.text(item.price?.toLocaleString() || "0", 190, y + 5, { align: "right" });
+    doc.text("1", 155, y + 5);
+    doc.text("Delivered", 175, y + 5);
     y += 8;
   });
 
   y += 8;
 
-  // Summary
+  // Delivery Information
   doc.setFillColor(230, 230, 230);
   doc.rect(15, y, 180, 10, "F");
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("SUMMARY", 18, y + 6);
+  doc.text("DELIVERY INFORMATION", 18, y + 6);
   y += 10;
 
-  const basePrice = quotationData.base_price || 0;
-  const vat = quotationData.vat || 0;
-  const registrationFee = quotationData.registration_fee || 0;
-  const discount = quotationData.discount || 0;
-  const totalEstimate = basePrice + vat + registrationFee - discount;
-
-  const summaryRows = [
-    { label: "Base Price", value: basePrice },
-    { label: "VAT", value: vat },
-    { label: "Registration Fee", value: registrationFee },
-    { label: "Discount", value: discount, isNegative: true },
-    { label: "Total Estimate", value: totalEstimate, isBold: true },
+  const deliveryInfo = [
+    { label: "Expected Delivery Date", value: deliveryData.expected_delivery_date || "To be confirmed" },
+    { label: "Delivery Method", value: deliveryData.delivery_method || "Standard" },
+    { label: "Tracking Number", value: deliveryData.tracking_number || "N/A" },
   ];
 
-  summaryRows.forEach((row) => {
+  deliveryInfo.forEach((info) => {
     doc.rect(15, y, 180, 10);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
-    doc.text(row.label, 20, y + 6);
-    doc.setFont("helvetica", row.isBold ? "bold" : "normal");
-    const formattedValue = `LKR ${row.value.toLocaleString()}`;
-    if (row.isNegative) {
-      doc.text(`- ${formattedValue}`, 190, y + 6, { align: "right" });
-    } else {
-      doc.text(formattedValue, 190, y + 6, { align: "right" });
-    }
+    doc.text(info.label, 20, y + 6);
+    doc.setFont("helvetica", "normal");
+    doc.text(info.value, 65, y + 6);
     y += 10;
   });
+
+  y += 8;
+
+  // Receiver Signature
+  doc.rect(15, y, 85, 30);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("Receiver's Signature", 20, y + 8);
+  doc.setFont("helvetica", "normal");
+  doc.text("Name:", 20, y + 18);
+  doc.text("Date:", 20, y + 26);
+
+  // Authorized Signature
+  doc.rect(110, y, 85, 30);
+  doc.setFontSize(9);
+  doc.setFont("helvetica", "bold");
+  doc.text("Authorized Signature", 115, y + 8);
+  doc.setFont("helvetica", "normal");
+  doc.text("Name:", 115, y + 18);
+  doc.text("Date:", 115, y + 26);
 
   // Footer
   doc.line(15, 268, 195, 268);
@@ -171,7 +176,7 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   doc.text("613 Bangalawa junction, Ethu Kotte, Kotte", 15, 282);
   doc.text("0777 411 011", 195, 278, { align: "right" });
 
-  doc.save(`Company_Quotation_${quotationData.id}.pdf`);
+  doc.save(`Company_DeliveryNote_${deliveryData.id}.pdf`);
 };
 
-export default generateCompanyQuotationPdf;
+export default generateCompanyDeliveryNotePdf;

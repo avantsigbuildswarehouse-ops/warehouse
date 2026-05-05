@@ -1,14 +1,43 @@
 import jsPDF from "jspdf";
 import QRCode from "qrcode";
 
-const generateCompanyReceiptPdf = async (receiptData: any) => {
+interface DealerReceiptData {
+  id?: string;
+  created_at?: string;
+  dealer_code: string;
+  invoice_no?: string;
+  quotation_no?: string;
+  amount_paid: number;
+  balance_due: number;
+}
+
+const generateDealerReceiptPdf = async (receiptData: DealerReceiptData, returnPdfData: boolean = false) => {
   const doc = new jsPDF("p", "mm", "a4");
+
+  // Generate document number
+  const documentNumber = `DEALER-RCPT-${receiptData.dealer_code}-${receiptData.id || Date.now()}`;
+  
+  // Check if document already exists (only when not returning PDF data)
+  if (!returnPdfData) {
+    try {
+      const checkResponse = await fetch(`/api/warehouse/dealer-documents?dealer_code=${receiptData.dealer_code}&document_type=receipt&document_number=${encodeURIComponent(documentNumber)}`);
+      const existingDoc = await checkResponse.json();
+      
+      if (existingDoc.document) {
+        console.log("Document already exists:", existingDoc.document);
+        alert("This document has already been generated!");
+        return;
+      }
+    } catch (error) {
+      console.error("Error checking existing document:", error);
+    }
+  }
 
   // QR Code
   let qrCodeSrc = "";
   try {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://abs-sigma.vercel.app";
-    const qrData = `${baseUrl}/company-receipt/${receiptData.id}`;
+    const qrData = `${baseUrl}/dealer-receipt/${receiptData.id}`;
     qrCodeSrc = await QRCode.toDataURL(qrData);
   } catch (error) {
     console.error(error);
@@ -43,18 +72,18 @@ const generateCompanyReceiptPdf = async (receiptData: any) => {
 
   doc.setFont("times", "bold");
   doc.setFontSize(18);
-  doc.text("PAYMENT RECEIPT", 105, 25, { align: "center" });
+  doc.text("DEALER PAYMENT RECEIPT", 105, 25, { align: "center" });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text("Receipt No:", 140, 16);
   doc.text("Date:", 140, 22);
-  doc.text("Company ID:", 140, 28);
+  doc.text("Dealer Code:", 140, 28);
 
   doc.setFont("helvetica", "bold");
-  doc.text(receiptData.id?.toString() || "-", 165, 16);
+  doc.text(documentNumber, 165, 16);
   doc.text(new Date(receiptData.created_at || Date.now()).toLocaleDateString(), 165, 22);
-  doc.text(receiptData.company_id?.toString() || "-", 165, 28);
+  doc.text(receiptData.dealer_code || "-", 165, 28);
 
   doc.setFont("helvetica", "normal");
   doc.text("Print Date:", 15, 35);
@@ -92,32 +121,26 @@ const generateCompanyReceiptPdf = async (receiptData: any) => {
 
   y += 8;
 
-  // Company Details
+  // Dealer Details
   doc.setFillColor(230, 230, 230);
   doc.rect(15, y, 180, 10, "F");
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("COMPANY DETAILS", 18, y + 6);
+  doc.text("DEALER DETAILS", 18, y + 6);
   y += 10;
 
-  const company = receiptData.company;
-  const companyInfo = [
-    { label: "Company Name", value: company?.company_name || "-" },
-    { label: "BR Number", value: company?.br_no?.toString() || "-" },
-    { label: "VAT Number", value: company?.vat_no?.toString() || "-" },
-    { label: "Contact", value: company?.company_contact?.toString() || "-" },
-    { label: "Email", value: company?.company_email || "-" },
-    { label: "Address", value: company?.address?.toString() || "-" },
+  const dealerInfo = [
+    { label: "Dealer Code", value: receiptData.dealer_code || "-" },
+    { label: "Type", value: "Dealer" },
   ];
 
-  companyInfo.forEach((info) => {
+  dealerInfo.forEach((info) => {
     doc.rect(15, y, 180, 10);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text(info.label, 20, y + 6);
     doc.setFont("helvetica", "normal");
-    const truncatedValue = info.value.length > 40 ? info.value.substring(0, 37) + "..." : info.value;
-    doc.text(truncatedValue, 55, y + 6);
+    doc.text(info.value, 55, y + 6);
     y += 10;
   });
 
@@ -146,7 +169,7 @@ const generateCompanyReceiptPdf = async (receiptData: any) => {
   doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
   doc.text("Thank you for your payment.", 20, y + 20);
-  doc.text("You are a valued customer!", 20, y + 28);
+  doc.text("You are a valued partner!", 20, y + 28);
 
   // Footer
   doc.line(15, 268, 195, 268);
@@ -157,7 +180,46 @@ const generateCompanyReceiptPdf = async (receiptData: any) => {
   doc.text("613 Bangalawa junction, Ethu Kotte, Kotte", 15, 282);
   doc.text("0777 411 011", 195, 278, { align: "right" });
 
-  doc.save(`Company_Receipt_${receiptData.id}.pdf`);
+  // Get PDF as buffer
+  const pdfBlob = doc.output("blob");
+  const pdfBuffer = await pdfBlob.arrayBuffer();
+
+  // If returning PDF data (for batch download)
+  if (returnPdfData) {
+    return pdfBuffer;
+  }
+
+  // Otherwise, download the PDF
+  const fileName = `Dealer_Receipt_${receiptData.dealer_code}_${receiptData.id}.pdf`;
+  doc.save(fileName);
+
+  // Save document reference to database
+  try {
+    const saveResponse = await fetch("/api/warehouse/dealer-documents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        dealer_code: receiptData.dealer_code,
+        document_type: "receipt",
+        document_number: documentNumber,
+        document_data: {
+          ...receiptData,
+          document_number: documentNumber,
+          generated_at: new Date().toISOString(),
+          group_key: receiptData.id,
+        },
+      }),
+    });
+    
+    const result = await saveResponse.json();
+    if (result.exists) {
+      console.log("Document reference already exists in database");
+    } else if (result.success) {
+      console.log("Document reference saved successfully");
+    }
+  } catch (error) {
+    console.error("Error saving document reference:", error);
+  }
 };
 
-export default generateCompanyReceiptPdf;
+export default generateDealerReceiptPdf;

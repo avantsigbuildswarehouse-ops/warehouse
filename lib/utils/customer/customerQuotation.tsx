@@ -1,14 +1,11 @@
-// hooks/Company/companyQuotation.ts
 import jsPDF from "jspdf";
 
-const generateCompanyQuotationPdf = async (quotationData: any) => {
+const generateCustomerQuotationPdf = async (quotationData: any) => {
   const doc = new jsPDF("p", "mm", "a4");
 
-  // ==============================
-  // LOAD LOGO
-  // ==============================
+  // Load logo
   const logo = new Image();
-  logo.src = "/assets/formLogo.png";
+  logo.src = "/formlogo.png"
 
   await new Promise((resolve) => {
     logo.onload = resolve;
@@ -18,9 +15,7 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
     };
   });
 
-  // ==============================
-  // HEADER
-  // ==============================
+  // Header
   if (logo.complete && logo.naturalWidth > 0) {
     try {
       doc.addImage(logo, "PNG", 15, 12, 38, 22);
@@ -37,7 +32,7 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
 
   doc.setFont("times", "bold");
   doc.setFontSize(18);
-  doc.text("COMPANY QUOTATION", 96, 25, { align: "center" });
+  doc.text("CUSTOMER QUOTATION", 105, 25, { align: "center" });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
@@ -46,42 +41,38 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   doc.text("Valid Until:", 140, 28);
 
   doc.setFont("helvetica", "bold");
-  doc.text(quotationData.id?.toString() || "-", 160, 16);
-  doc.text(new Date(quotationData.created_at || Date.now()).toLocaleDateString(), 160, 22);
+  doc.text(quotationData.id?.toString() || "-", 165, 16);
+  doc.text(new Date(quotationData.created_at || Date.now()).toLocaleDateString(), 165, 22);
   const validUntil = new Date();
   validUntil.setDate(validUntil.getDate() + 30);
-  doc.text(validUntil.toLocaleDateString(), 160, 28);
+  doc.text(validUntil.toLocaleDateString(), 165, 28);
 
   doc.setFont("helvetica", "normal");
   doc.text("Print Date:", 15, 35);
   doc.setFont("helvetica", "bold");
-  doc.text(new Date().toLocaleDateString(), 35, 35);
+  doc.text(new Date().toLocaleDateString(), 40, 35);
 
   doc.line(15, 38, 195, 38);
 
-  // ==============================
-  // COMPANY DETAILS
-  // ==============================
+  // Customer Details
   let y = 50;
 
   doc.setFillColor(230, 230, 230);
   doc.rect(15, y, 180, 10, "F");
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("COMPANY DETAILS", 18, y + 6);
+  doc.text("CUSTOMER DETAILS", 18, y + 6);
   y += 10;
 
-  const company = quotationData.companies;
-  const companyInfo = [
-    { label: "Company Name", value: company?.company_name || "-" },
-    { label: "BR Number", value: company?.BR_no?.toString() || "-" },
-    { label: "VAT Number", value: company?.VAT_no?.toString() || "-" },
-    { label: "Contact", value: company?.company_contact?.toString() || "-" },
-    { label: "Email", value: company?.company_email || "-" },
-    { label: "Address", value: company?.address?.toString() || "-" },
+  const customer = quotationData.customer;
+  const customerInfo = [
+    { label: "Customer Name", value: `${customer?.first_name || ""} ${customer?.last_name || ""}`.trim() || "-" },
+    { label: "Phone", value: customer?.phone_number || "-" },
+    { label: "NIC", value: customer?.nic || "-" },
+    { label: "Address", value: customer?.address || "-" },
   ];
 
-  companyInfo.forEach((info) => {
+  customerInfo.forEach((info) => {
     doc.rect(15, y, 180, 10);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
@@ -94,56 +85,59 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
 
   y += 8;
 
-  // ==============================
-  // VEHICLE DETAILS
-  // ==============================
+  // Items Table
   doc.setFillColor(230, 230, 230);
   doc.rect(15, y, 180, 10, "F");
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("VEHICLE DETAILS", 18, y + 6);
+  doc.text("ITEMS", 18, y + 6);
   y += 10;
 
-  const vehicle = quotationData.vehicles;
-  const vehicleInfo = [
-    { label: "Vehicle Model", value: vehicle?.vehicleModel || quotationData.vehicle_model || "-" },
-    { label: "Engine Number", value: vehicle?.engineNumber || quotationData.engine_no || "-" },
-    { label: "Chassis Number", value: vehicle?.chassisNumber || quotationData.chassis_no || "-" },
-    { label: "Color", value: vehicle?.color || quotationData.vehicle_color || "-" },
-    { label: "Manufacturing Year", value: vehicle?.manuYear || "-" },
-  ];
+  // Table headers
+  doc.setFillColor(200, 200, 200);
+  doc.rect(15, y, 180, 8, "F");
+  doc.setFontSize(8);
+  doc.setFont("helvetica", "bold");
+  doc.text("Type", 18, y + 5);
+  doc.text("Model/Code", 50, y + 5);
+  doc.text("Identifier", 100, y + 5);
+  doc.text("Price (LKR)", 155, y + 5, { align: "right" });
+  y += 8;
 
-  vehicleInfo.forEach((info) => {
-    doc.rect(15, y, 180, 10);
-    doc.setFontSize(9);
-    doc.setFont("helvetica", "bold");
-    doc.text(info.label, 20, y + 6);
+  // Items
+  const items = quotationData.items || [];
+  items.forEach((item: any) => {
+    if (y > 250) {
+      doc.addPage();
+      y = 20;
+    }
+    doc.rect(15, y, 180, 8);
+    doc.setFontSize(8);
     doc.setFont("helvetica", "normal");
-    doc.text(info.value, 55, y + 6);
-    y += 10;
+    doc.text(item.type, 18, y + 5);
+    doc.text(item.model_code, 50, y + 5);
+    doc.text(item.identifier, 100, y + 5);
+    doc.text(item.price?.toLocaleString() || "0", 190, y + 5, { align: "right" });
+    y += 8;
   });
 
   y += 8;
 
-  // ==============================
-  // QUOTATION SUMMARY
-  // ==============================
+  // Summary
   doc.setFillColor(230, 230, 230);
   doc.rect(15, y, 180, 10, "F");
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("QUOTATION SUMMARY", 18, y + 6);
+  doc.text("SUMMARY", 18, y + 6);
   y += 10;
 
   const basePrice = quotationData.base_price || 0;
-  const vat = quotationData.VAT || 0;
   const registrationFee = quotationData.registration_fee || 0;
   const discount = quotationData.discount || 0;
-  const totalEstimate = quotationData.total_estimate || 0;
+  const totalEstimate = basePrice + registrationFee - discount;
 
   const summaryRows = [
     { label: "Base Price", value: basePrice },
-    { label: "VAT", value: vat },
     { label: "Registration Fee", value: registrationFee },
     { label: "Discount", value: discount, isNegative: true },
     { label: "Total Estimate", value: totalEstimate, isBold: true },
@@ -155,19 +149,16 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
     doc.setFont("helvetica", "bold");
     doc.text(row.label, 20, y + 6);
     doc.setFont("helvetica", row.isBold ? "bold" : "normal");
+    const formattedValue = `LKR ${row.value.toLocaleString()}`;
     if (row.isNegative) {
-      doc.text(`- LKR ${row.value.toLocaleString()}`, 170, y + 6, { align: "right" });
+      doc.text(`- ${formattedValue}`, 190, y + 6, { align: "right" });
     } else {
-      doc.text(`LKR ${row.value.toLocaleString()}`, 170, y + 6, { align: "right" });
+      doc.text(formattedValue, 190, y + 6, { align: "right" });
     }
     y += 10;
   });
 
-  y += 8;
-
-  // ==============================
-  // FOOTER
-  // ==============================
+  // Footer
   doc.line(15, 268, 195, 268);
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
@@ -176,7 +167,7 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   doc.text("613 Bangalawa junction, Ethu Kotte, Kotte", 15, 282);
   doc.text("0777 411 011", 195, 278, { align: "right" });
 
-  doc.save(`Company_Quotation_${quotationData.id}.pdf`);
+  doc.save(`Customer_Quotation_${quotationData.id}.pdf`);
 };
 
-export default generateCompanyQuotationPdf;
+export default generateCustomerQuotationPdf;

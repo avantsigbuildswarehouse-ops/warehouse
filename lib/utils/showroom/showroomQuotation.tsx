@@ -1,7 +1,41 @@
 import jsPDF from "jspdf";
 
-const generateCompanyQuotationPdf = async (quotationData: any) => {
+interface ShowroomQuotationData {
+  id?: string;
+  created_at?: string;
+  showroom_code: string;
+  items: Array<{
+    type: "Bike" | "Spare";
+    model_code: string;
+    identifier: string;
+    price: number;
+  }>;
+  base_price?: number;
+  discount?: number;
+  total_value?: number;
+}
+
+const generateShowroomQuotationPdf = async (quotationData: ShowroomQuotationData, returnPdfData: boolean = false) => {
   const doc = new jsPDF("p", "mm", "a4");
+
+  // Generate document number
+  const documentNumber = `SHOWROOM-QUOT-${quotationData.showroom_code}-${quotationData.id || Date.now()}`;
+  
+  // Check if document already exists (only when not returning PDF data)
+  if (!returnPdfData) {
+    try {
+      const checkResponse = await fetch(`/api/warehouse/showroom-documents?showroom_code=${quotationData.showroom_code}&document_type=quotation&document_number=${encodeURIComponent(documentNumber)}`);
+      const existingDoc = await checkResponse.json();
+      
+      if (existingDoc.document) {
+        console.log("Document already exists:", existingDoc.document);
+        alert("This document has already been generated!");
+        return;
+      }
+    } catch (error) {
+      console.error("Error checking existing document:", error);
+    }
+  }
 
   // Load logo
   const logo = new Image();
@@ -32,7 +66,7 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
 
   doc.setFont("times", "bold");
   doc.setFontSize(18);
-  doc.text("COMPANY QUOTATION", 105, 25, { align: "center" });
+  doc.text("SHOWROOM QUOTATION", 105, 25, { align: "center" });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
@@ -41,7 +75,7 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   doc.text("Valid Until:", 140, 28);
 
   doc.setFont("helvetica", "bold");
-  doc.text(quotationData.id?.toString() || "-", 165, 16);
+  doc.text(documentNumber, 165, 16);
   doc.text(new Date(quotationData.created_at || Date.now()).toLocaleDateString(), 165, 22);
   const validUntil = new Date();
   validUntil.setDate(validUntil.getDate() + 30);
@@ -54,34 +88,28 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
 
   doc.line(15, 38, 195, 38);
 
-  // Company Details
+  // Showroom Details
   let y = 50;
 
   doc.setFillColor(230, 230, 230);
   doc.rect(15, y, 180, 10, "F");
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("COMPANY DETAILS", 18, y + 6);
+  doc.text("SHOWROOM DETAILS", 18, y + 6);
   y += 10;
 
-  const company = quotationData.company;
-  const companyInfo = [
-    { label: "Company Name", value: company?.company_name || "-" },
-    { label: "BR Number", value: company?.br_no?.toString() || "-" },
-    { label: "VAT Number", value: company?.vat_no?.toString() || "-" },
-    { label: "Contact", value: company?.company_contact?.toString() || "-" },
-    { label: "Email", value: company?.company_email || "-" },
-    { label: "Address", value: company?.address?.toString() || "-" },
+  const showroomInfo = [
+    { label: "Showroom Code", value: quotationData.showroom_code || "-" },
+    { label: "Type", value: "Showroom" },
   ];
 
-  companyInfo.forEach((info) => {
+  showroomInfo.forEach((info) => {
     doc.rect(15, y, 180, 10);
     doc.setFontSize(9);
     doc.setFont("helvetica", "bold");
     doc.text(info.label, 20, y + 6);
     doc.setFont("helvetica", "normal");
-    const truncatedValue = info.value.length > 40 ? info.value.substring(0, 37) + "..." : info.value;
-    doc.text(truncatedValue, 55, y + 6);
+    doc.text(info.value, 55, y + 6);
     y += 10;
   });
 
@@ -108,7 +136,7 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
 
   // Items
   const items = quotationData.items || [];
-  items.forEach((item: any) => {
+  items.forEach((item) => {
     if (y > 250) {
       doc.addPage();
       y = 20;
@@ -133,18 +161,14 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   doc.text("SUMMARY", 18, y + 6);
   y += 10;
 
-  const basePrice = quotationData.base_price || 0;
-  const vat = quotationData.vat || 0;
-  const registrationFee = quotationData.registration_fee || 0;
+  const basePrice = quotationData.base_price || quotationData.total_value || 0;
   const discount = quotationData.discount || 0;
-  const totalEstimate = basePrice + vat + registrationFee - discount;
+  const total = basePrice - discount;
 
   const summaryRows = [
     { label: "Base Price", value: basePrice },
-    { label: "VAT", value: vat },
-    { label: "Registration Fee", value: registrationFee },
     { label: "Discount", value: discount, isNegative: true },
-    { label: "Total Estimate", value: totalEstimate, isBold: true },
+    { label: "Total Amount", value: total, isBold: true },
   ];
 
   summaryRows.forEach((row) => {
@@ -171,7 +195,46 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   doc.text("613 Bangalawa junction, Ethu Kotte, Kotte", 15, 282);
   doc.text("0777 411 011", 195, 278, { align: "right" });
 
-  doc.save(`Company_Quotation_${quotationData.id}.pdf`);
+  // Get PDF as buffer
+  const pdfBlob = doc.output("blob");
+  const pdfBuffer = await pdfBlob.arrayBuffer();
+
+  // If returning PDF data (for batch download)
+  if (returnPdfData) {
+    return pdfBuffer;
+  }
+
+  // Otherwise, download the PDF
+  const fileName = `Showroom_Quotation_${quotationData.showroom_code}_${quotationData.id}.pdf`;
+  doc.save(fileName);
+
+  // Save document reference to database
+  try {
+    const saveResponse = await fetch("/api/warehouse/showroom-documents", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        showroom_code: quotationData.showroom_code,
+        document_type: "quotation",
+        document_number: documentNumber,
+        document_data: {
+          ...quotationData,
+          document_number: documentNumber,
+          generated_at: new Date().toISOString(),
+          group_key: quotationData.id,
+        },
+      }),
+    });
+    
+    const result = await saveResponse.json();
+    if (result.exists) {
+      console.log("Document reference already exists in database");
+    } else if (result.success) {
+      console.log("Document reference saved successfully");
+    }
+  } catch (error) {
+    console.error("Error saving document reference:", error);
+  }
 };
 
-export default generateCompanyQuotationPdf;
+export default generateShowroomQuotationPdf;

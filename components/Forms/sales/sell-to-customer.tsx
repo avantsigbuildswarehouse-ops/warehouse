@@ -49,7 +49,7 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
   const [vehicles, setVehicles] = useState<VehicleRow[]>([]);
   const [spares, setSpares] = useState<SpareRow[]>([]);
   const [query, setQuery] = useState("");
-  const [cartBikes, setCartBikes] = useState<Set<string>>(new Set());
+  const [selectedBikeId, setSelectedBikeId] = useState<string | null>(null);
   const [cartSpares, setCartSpares] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
@@ -64,13 +64,14 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
 
   // payment fields
   const [basePrice, setBasePrice] = useState<string>("");
-  const [vat, setVat] = useState<string>("");
   const [registrationFee, setRegistrationFee] = useState<string>("");
   const [discount, setDiscount] = useState<string>("");
   const [advancePayment, setAdvancePayment] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Cash");
-  const [warrantyQr, setWarrantyQr] = useState<Array<{ id: string; label: string; url: string }>>([]);
-
+  
+  // Add a flag to track if base price was manually edited
+  const [isBasePriceManuallyEdited, setIsBasePriceManuallyEdited] = useState(false);
+ 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
@@ -91,21 +92,78 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
     if (targetCode) void load();
   }, [targetCode, targetType]);
 
+  // Calculate total price of selected items
+  const calculateTotalPrice = () => {
+    let total = 0;
+    
+    // Add selected bike price
+    if (selectedBikeId) {
+      const bike = vehicles.find(v => v.id === selectedBikeId);
+      if (bike && bike.price) {
+        total += bike.price;
+      }
+    }
+    
+    // Sum selected spare prices
+    cartSpares.forEach(spareId => {
+      const spare = spares.find(s => s.id === spareId);
+      if (spare && spare.price) {
+        total += spare.price;
+      }
+    });
+    
+    return total;
+  };
+
+  // Auto-update base price when cart changes (only if not manually edited)
+  useEffect(() => {
+    if (!isBasePriceManuallyEdited) {
+      const total = calculateTotalPrice();
+      setBasePrice(formatMoneyForInput(total.toString()));
+    }
+  }, [selectedBikeId, cartSpares, vehicles, spares, isBasePriceManuallyEdited]);
+
+  // Reset manual edit flag when cart becomes empty
+  useEffect(() => {
+    if (!selectedBikeId && cartSpares.size === 0) {
+      setIsBasePriceManuallyEdited(false);
+    }
+  }, [selectedBikeId, cartSpares]);
+
+  // Reset registration fee and advance payment when bike is deselected
+  useEffect(() => {
+    if (!selectedBikeId) {
+      setRegistrationFee("");
+      setAdvancePayment("");
+    }
+  }, [selectedBikeId]);
+
+  const handleBikeSelection = (bikeId: string) => {
+    if (selectedBikeId === bikeId) {
+      // Deselect if already selected
+      setSelectedBikeId(null);
+    } else {
+      // Select new bike (replaces any existing selection)
+      setSelectedBikeId(bikeId);
+    }
+  };
+
   const filteredVehicles = useMemo(() => {
     const q = query.trim().toLowerCase();
     let filtered = vehicles;
     if (!q) return filtered;
-    return filtered.filter((v) => `${v.model_code} ${v.engine_number} ${v.chassis_number}`.toLowerCase().includes(q));
+    return filtered.filter((v) => `${v.model_code} ${v.engine_number} ${v.chassis_number} ${v.color} ${v.price}`.toLowerCase().includes(q));
   }, [vehicles, query]);
 
   const filteredSpares = useMemo(() => {
     const q = query.trim().toLowerCase();
     let filtered = spares;
     if (!q) return filtered;
-    return filtered.filter((s) => `${s.model_code} ${s.spare_code} ${s.serial_number}`.toLowerCase().includes(q));
+    return filtered.filter((s) => `${s.model_code} ${s.spare_code} ${s.serial_number} ${s.price}`.toLowerCase().includes(q));
   }, [spares, query]);
 
-  const cartCount = cartBikes.size + cartSpares.size;
+  const cartCount = (selectedBikeId ? 1 : 0) + cartSpares.size;
+  const hasBike = selectedBikeId !== null;
 
   const handleSubmit = async () => {
     if (!firstName || !lastName || !phone || cartCount === 0) return;
@@ -114,7 +172,7 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
     setErrorMessage(null);
     try {
       const items = [
-        ...Array.from(cartBikes).map((id) => ({ type: "Bike" as const, id })),
+        ...(selectedBikeId ? [{ type: "Bike" as const, id: selectedBikeId }] : []),
         ...Array.from(cartSpares).map((id) => ({ type: "Spare" as const, id })),
       ];
       const res = await fetch("/api/sales/customer", {
@@ -133,10 +191,9 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
           items,
           payment: {
             base_price: moneyInputToNumber(basePrice),
-            vat: moneyInputToNumber(vat),
-            registration_fee: moneyInputToNumber(registrationFee),
+            registration_fee: hasBike ? moneyInputToNumber(registrationFee) : 0,
             discount: moneyInputToNumber(discount),
-            advance_payment: moneyInputToNumber(advancePayment),
+            advance_payment: hasBike ? moneyInputToNumber(advancePayment) : 0,
             payment_method: paymentMethod,
           },
         }),
@@ -145,23 +202,30 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
       if (!res.ok) throw new Error(data.error || "Failed to submit sale");
 
       setSuccess(data.saleId);
-      setCartBikes(new Set());
+      setSelectedBikeId(null);
       setCartSpares(new Set());
-      const qrRows = ((data.bikeWarrantyQr || []) as Array<{ inventoryId: string; engine_number: string | null; chassis_number: string | null; warranty_url: string }>);
-      const qrCodes = await Promise.all(
-        qrRows.map(async (row) => ({
-          id: row.inventoryId,
-          label: `${row.engine_number || "-"} / ${row.chassis_number || "-"}`,
-          url: await QRCode.toDataURL(new URL(row.warranty_url, window.location.origin).toString()),
-        }))
-      );
-      setWarrantyQr(qrCodes);
+      setIsBasePriceManuallyEdited(false);
+      setBasePrice("");
+      setRegistrationFee("");
+      setDiscount("");
+      setAdvancePayment("");
+      setFirstName("");
+      setLastName("");
+      setPhone("");
+      setAddress("");
+      setNic("");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Failed";
       setErrorMessage(message);
     } finally {
       setSubmitting(false);
     }
+  };
+
+  // Handle manual base price change
+  const handleBasePriceChange = (value: string) => {
+    setIsBasePriceManuallyEdited(true);
+    setBasePrice(sanitizeMoneyInput(value));
   };
 
   if (loading) {
@@ -196,7 +260,7 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
           <CardHeader>
             <CardTitle className="dark:text-white">Available inventory</CardTitle>
             <CardDescription className="dark:text-slate-400">
-              {filterCategory === "bikes" ? "Showing Vehicles" : "Showing Spare Parts"} - Search and add items to cart.
+              {filterCategory === "bikes" ? "Showing Vehicles (max 1 per sale)" : "Showing Spare Parts (multiple allowed)"} - Search and add items to cart.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -211,26 +275,19 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
               {filterCategory === "bikes" ? (
                 <>
                   <p className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Truck className="h-4 w-4" /> Vehicles
+                    <Truck className="h-4 w-4" /> Vehicles (Maximum 1 per sale)
                   </p>
                   <div className="max-h-[52vh] overflow-y-auto rounded-2xl border border-slate-200 p-2 dark:border-white/10">
                     {filteredVehicles.length === 0 ? (
                       <p className="p-3 text-sm text-slate-500 dark:text-slate-400">No vehicles available.</p>
                     ) : (
                       filteredVehicles.map((v) => {
-                        const selected = cartBikes.has(v.id);
+                        const selected = selectedBikeId === v.id;
                         return (
                           <button
                             key={v.id}
                             type="button"
-                            onClick={() => {
-                              setCartBikes((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(v.id)) next.delete(v.id);
-                                else next.add(v.id);
-                                return next;
-                              });
-                            }}
+                            onClick={() => handleBikeSelection(v.id)}
                             className={`w-full rounded-xl border p-3 text-left transition-colors ${
                               selected
                                 ? "border-sky-300 bg-sky-50 dark:border-sky-500/30 dark:bg-sky-500/10"
@@ -244,6 +301,7 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
                             <p className="mt-1 text-xs font-mono text-slate-600 dark:text-slate-300">ENG: {v.engine_number}</p>
                             <p className="text-xs font-mono text-slate-600 dark:text-slate-300">CHS: {v.chassis_number}</p>
                             <p className="text-xs text-slate-600 dark:text-slate-300">Color: {v.color || "-"}</p>
+                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Price: Rs{v.price?.toLocaleString() || "0"}</p>
                           </button>
                         );
                       })
@@ -253,7 +311,7 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
               ) : (
                 <>
                   <p className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Wrench className="h-4 w-4" /> Spares
+                    <Wrench className="h-4 w-4" /> Spares (Multiple allowed)
                   </p>
                   <div className="max-h-[52vh] overflow-y-auto rounded-2xl border border-slate-200 p-2 dark:border-white/10">
                     {filteredSpares.length === 0 ? (
@@ -285,6 +343,7 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
                             </div>
                             <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{s.model_code}</p>
                             <p className="text-xs font-mono text-slate-600 dark:text-slate-300">SER: {s.serial_number}</p>
+                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Price: Rs{s.price?.toLocaleString() || "0"}</p>
                           </button>
                         );
                       })
@@ -308,6 +367,47 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
             <CardContent className="space-y-4">
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-800/30">
                 <p className="font-semibold text-slate-900 dark:text-white">{cartCount} item(s) selected</p>
+                {cartCount > 0 && (
+                  <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
+                    <p>Selected items:</p>
+                    <ul className="list-inside list-disc">
+                      {selectedBikeId && (() => {
+                        const bike = vehicles.find(v => v.id === selectedBikeId);
+                        return bike && (
+                          <li key={selectedBikeId}>
+                            🚗 {bike.model_code} - Rs{bike.price?.toLocaleString()}
+                            <button
+                              onClick={() => setSelectedBikeId(null)}
+                              className="ml-2 text-red-500 hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          </li>
+                        );
+                      })()}
+                      {Array.from(cartSpares).map(spareId => {
+                        const spare = spares.find(s => s.id === spareId);
+                        return spare && (
+                          <li key={spareId}>
+                            🔧 {spare.spare_code} - Rs{spare.price?.toLocaleString()}
+                            <button
+                              onClick={() => {
+                                setCartSpares(prev => {
+                                  const next = new Set(prev);
+                                  next.delete(spareId);
+                                  return next;
+                                });
+                              }}
+                              className="ml-2 text-red-500 hover:text-red-700"
+                            >
+                              Remove
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </div>
+                )}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -340,48 +440,82 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Base price</Label>
-                    <Input value={basePrice} inputMode="decimal" placeholder="0.00" onChange={(e) => setBasePrice(sanitizeMoneyInput(e.target.value))} onBlur={() => setBasePrice(formatMoneyForInput(basePrice))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                    <Input 
+                      value={basePrice} 
+                      inputMode="decimal" 
+                      placeholder="0.00" 
+                      onChange={(e) => handleBasePriceChange(e.target.value)} 
+                      onBlur={() => setBasePrice(formatMoneyForInput(basePrice))} 
+                      className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" 
+                    />
+                    {!isBasePriceManuallyEdited && cartCount > 0 && (
+                      <p className="text-xs text-slate-500 dark:text-slate-400">Auto-calculated from selected items</p>
+                    )}
+                    {isBasePriceManuallyEdited && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400">Manually edited (auto-update paused)</p>
+                    )}
                   </div>
-                  <div className="space-y-2">
-                    <Label>VAT</Label>
-                    <Input value={vat} inputMode="decimal" placeholder="0.00" onChange={(e) => setVat(sanitizeMoneyInput(e.target.value))} onBlur={() => setVat(formatMoneyForInput(vat))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Registration fee</Label>
-                    <Input value={registrationFee} inputMode="decimal" placeholder="0.00" onChange={(e) => setRegistrationFee(sanitizeMoneyInput(e.target.value))} onBlur={() => setRegistrationFee(formatMoneyForInput(registrationFee))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
-                  </div>
+                  
+                  {/* Only show Registration Fee and Advance Payment if a bike is selected */}
+                  {hasBike && (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Registration fee</Label>
+                        <Input 
+                          value={registrationFee} 
+                          inputMode="decimal" 
+                          placeholder="0.00" 
+                          onChange={(e) => setRegistrationFee(sanitizeMoneyInput(e.target.value))} 
+                          onBlur={() => setRegistrationFee(formatMoneyForInput(registrationFee))} 
+                          className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" 
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Advance</Label>
+                        <Input 
+                          value={advancePayment} 
+                          inputMode="decimal" 
+                          placeholder="0.00" 
+                          onChange={(e) => setAdvancePayment(sanitizeMoneyInput(e.target.value))} 
+                          onBlur={() => setAdvancePayment(formatMoneyForInput(advancePayment))} 
+                          className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" 
+                        />
+                      </div>
+                    </>
+                  )}
+                  
                   <div className="space-y-2">
                     <Label>Discount</Label>
-                    <Input value={discount} inputMode="decimal" placeholder="0.00" onChange={(e) => setDiscount(sanitizeMoneyInput(e.target.value))} onBlur={() => setDiscount(formatMoneyForInput(discount))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Advance</Label>
-                    <Input value={advancePayment} inputMode="decimal" placeholder="0.00" onChange={(e) => setAdvancePayment(sanitizeMoneyInput(e.target.value))} onBlur={() => setAdvancePayment(formatMoneyForInput(advancePayment))} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                    <Input 
+                      value={discount} 
+                      inputMode="decimal" 
+                      placeholder="0.00" 
+                      onChange={(e) => setDiscount(sanitizeMoneyInput(e.target.value))} 
+                      onBlur={() => setDiscount(formatMoneyForInput(discount))} 
+                      className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" 
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label>Method</Label>
-                    <Input value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                    <Input 
+                      value={paymentMethod} 
+                      onChange={(e) => setPaymentMethod(e.target.value)} 
+                      className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" 
+                    />
                   </div>
                 </div>
+                
+                {/* Show message when only spares are selected */}
+                {cartSpares.size > 0 && !hasBike && (
+                  <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
+                    Note: Registration fee and advance payment are only applicable for vehicle purchases.
+                  </p>
+                )}
               </div>
 
               <Button disabled={submitting || cartCount === 0 || !firstName || !lastName || !phone} onClick={handleSubmit} className="w-full">
                 {submitting ? "Processing..." : "Complete sale"}
               </Button>
-
-              {warrantyQr.length > 0 && (
-                <div className="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-white/10">
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">Warranty QR (bikes only)</p>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    {warrantyQr.map((qr) => (
-                      <div key={qr.id} className="rounded-lg border border-slate-200 p-3 dark:border-white/10">
-                        <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{qr.label}</p>
-                        <Image src={qr.url} alt={`Warranty QR ${qr.label}`} width={144} height={144} className="h-36 w-36 rounded bg-white p-1" />
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
             </CardContent>
           </Card>
         </div>

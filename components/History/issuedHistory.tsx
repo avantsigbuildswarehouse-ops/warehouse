@@ -10,6 +10,9 @@ import {
   ChevronUp,
   Bike,
   Wrench,
+  Download,
+  Loader2,
+  Eye,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -22,11 +25,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import PaginationControls from "@/components/ui/pagination-controls";
-
-import {
-  generateIssueDocument,
-  IssueDocData,
-} from "@/lib/utils/pdf-generator";
+import JSZip from "jszip";
 
 type Item = {
   type: "Bike" | "Spare";
@@ -50,6 +49,14 @@ type Group = {
   latestIssuedAt: string;
 };
 
+type DocumentInfo = {
+  id: string;
+  document_type: string;
+  document_number: string;
+  generated_at: string;
+  document_data: any;
+};
+
 function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
 }
@@ -62,6 +69,10 @@ export default function IssuedHistoryPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalGroups, setTotalGroups] = useState(0);
+  const [downloadingDocs, setDownloadingDocs] = useState<Set<string>>(new Set());
+  const [generatingSingle, setGeneratingSingle] = useState<Set<string>>(new Set());
+  const [documentsList, setDocumentsList] = useState<Map<string, DocumentInfo[]>>(new Map());
+  const [showDocsPopup, setShowDocsPopup] = useState<string | null>(null);
   const pageSize = 10;
 
   useEffect(() => {
@@ -109,21 +120,345 @@ export default function IssuedHistoryPage() {
     });
   }
 
-  function generateGroupDoc(group: Group, type: IssueDocData["type"]) {
-    const doc = generateIssueDocument({
-      type,
-      referenceNo: `ASB-${group.date}-${group.target_code}`,
-      date: group.latestIssuedAt,
-      targetName: `${group.target} (${group.target_code})`,
-      targetAddress: "-",
-      items: group.items.map((item) => ({
-        model_code: item.model_code,
-        name: item.type === "Bike" ? `Bike — ${item.model_code}` : `Spare — ${item.model_code}`,
-        identifier: item.identifier,
-        price: item.price,
-      })),
-    });
-    doc.save(`${type}_${group.target_code}_${group.date}.pdf`);
+  async function generateGroupDoc(group: Group, type: "Quotation" | "Invoice" | "Receipt" | "Delivery Note") {
+    try {
+      if (group.target === "Showroom") {
+        switch (type) {
+          case "Quotation":
+            const generateShowroomQuotation = (await import("../../lib/utils/showroom/showroomQuotation")).default;
+            await generateShowroomQuotation({
+              id: group.key,
+              created_at: group.latestIssuedAt,
+              showroom_code: group.target_code,
+              items: group.items.map(item => ({
+                type: item.type,
+                model_code: item.model_code,
+                identifier: item.identifier,
+                price: item.price,
+              })),
+              total_value: group.totalValue,
+              base_price: group.totalValue,
+              discount: 0,
+            });
+            break;
+          case "Invoice":
+            const generateShowroomInvoice = (await import("../../lib/utils/showroom/showroomInvoice")).default;
+            await generateShowroomInvoice({
+              id: group.key,
+              created_at: group.latestIssuedAt,
+              showroom_code: group.target_code,
+              items: group.items.map(item => ({
+                type: item.type,
+                model_code: item.model_code,
+                identifier: item.identifier,
+                price: item.price,
+              })),
+              total_value: group.totalValue,
+              base_price: group.totalValue,
+              discount: 0,
+            });
+            break;
+          case "Receipt":
+            const generateShowroomReceipt = (await import("../../lib/utils/showroom/showroomReceipt")).default;
+            await generateShowroomReceipt({
+              id: group.key,
+              created_at: group.latestIssuedAt,
+              showroom_code: group.target_code,
+              invoice_no: `SHOWROOM-INV-${group.target_code}-${group.key}`,
+              quotation_no: `SHOWROOM-QUOT-${group.target_code}-${group.key}`,
+              amount_paid: group.totalValue,
+              balance_due: 0,
+            });
+            break;
+          case "Delivery Note":
+            const generateShowroomDeliveryNote = (await import("../../lib/utils/showroom/showroomDeliveryNote")).default;
+            await generateShowroomDeliveryNote({
+              id: group.key,
+              created_at: group.latestIssuedAt,
+              showroom_code: group.target_code,
+              items: group.items.map(item => ({
+                type: item.type,
+                model_code: item.model_code,
+                identifier: item.identifier,
+                price: item.price,
+              })),
+              reference_no: `REF-${group.date}-${group.target_code}`,
+            });
+            break;
+        }
+      } else if (group.target === "Dealer") {
+        switch (type) {
+          case "Quotation":
+            const generateDealerQuotation = (await import("../../lib/utils/dealer/dealerQuotation")).default;
+            await generateDealerQuotation({
+              id: group.key,
+              created_at: group.latestIssuedAt,
+              dealer_code: group.target_code,
+              items: group.items.map(item => ({
+                type: item.type,
+                model_code: item.model_code,
+                identifier: item.identifier,
+                price: item.price,
+              })),
+              total_value: group.totalValue,
+              base_price: group.totalValue,
+              discount: 0,
+            });
+            break;
+          case "Invoice":
+            const generateDealerInvoice = (await import("../../lib/utils/dealer/dealerInvoice")).default;
+            await generateDealerInvoice({
+              id: group.key,
+              created_at: group.latestIssuedAt,
+              dealer_code: group.target_code,
+              items: group.items.map(item => ({
+                type: item.type,
+                model_code: item.model_code,
+                identifier: item.identifier,
+                price: item.price,
+              })),
+              total_value: group.totalValue,
+              base_price: group.totalValue,
+              discount: 0,
+            });
+            break;
+          case "Receipt":
+            const generateDealerReceipt = (await import("../../lib/utils/dealer/dealerReceipt")).default;
+            await generateDealerReceipt({
+              id: group.key,
+              created_at: group.latestIssuedAt,
+              dealer_code: group.target_code,
+              invoice_no: `DEALER-INV-${group.target_code}-${group.key}`,
+              quotation_no: `DEALER-QUOT-${group.target_code}-${group.key}`,
+              amount_paid: group.totalValue,
+              balance_due: 0,
+            });
+            break;
+          case "Delivery Note":
+            const generateDealerDeliveryNote = (await import("../../lib/utils/dealer/dealerDeliveryNote")).default;
+            await generateDealerDeliveryNote({
+              id: group.key,
+              created_at: group.latestIssuedAt,
+              dealer_code: group.target_code,
+              items: group.items.map(item => ({
+                type: item.type,
+                model_code: item.model_code,
+                identifier: item.identifier,
+                price: item.price,
+              })),
+              reference_no: `REF-${group.date}-${group.target_code}`,
+            });
+            break;
+        }
+      }
+    } catch (error) {
+      console.error("Error generating document:", error);
+      alert("Failed to generate document. Please try again.");
+    }
+  }
+
+  async function getExistingDocuments(group: Group) {
+    try {
+      const response = await fetch(`/api/warehouse/group-documents?group_key=${group.key}&target_type=${group.target.toLowerCase()}&target_code=${group.target_code}`);
+      
+      const data = await response.json();
+      
+      if (response.ok && data.documents && data.documents.length > 0) {
+        setDocumentsList(prev => new Map(prev).set(group.key, data.documents));
+        setShowDocsPopup(group.key);
+      } else if (response.status === 404 || !data.documents || data.documents.length === 0) {
+        alert("No documents found for this batch. Please generate them first.");
+      } else {
+        alert("Failed to fetch documents.");
+      }
+    } catch (error) {
+      console.error("Error fetching documents:", error);
+      alert("Failed to fetch documents. Please try again.");
+    }
+  }
+
+  async function regenerateSingleDocument(doc: DocumentInfo, group: Group) {
+    const docId = `${doc.id}-${doc.document_type}`;
+    setGeneratingSingle(prev => new Set(prev).add(docId));
+    
+    try {
+      let pdfGenerator;
+      let fileName = "";
+      
+      if (group.target === "Dealer") {
+        switch (doc.document_type) {
+          case "quotation":
+            pdfGenerator = (await import("../../lib/utils/dealer/dealerQuotation")).default;
+            fileName = `Dealer_Quotation_${group.target_code}`;
+            break;
+          case "invoice":
+            pdfGenerator = (await import("../../lib/utils/dealer/dealerInvoice")).default;
+            fileName = `Dealer_Invoice_${group.target_code}`;
+            break;
+          case "receipt":
+            pdfGenerator = (await import("../../lib/utils/dealer/dealerReceipt")).default;
+            fileName = `Dealer_Receipt_${group.target_code}`;
+            break;
+          case "delivery_note":
+            pdfGenerator = (await import("../../lib/utils/dealer/dealerDeliveryNote")).default;
+            fileName = `Dealer_DeliveryNote_${group.target_code}`;
+            break;
+        }
+      } else {
+        switch (doc.document_type) {
+          case "quotation":
+            pdfGenerator = (await import("../../lib/utils/showroom/showroomQuotation")).default;
+            fileName = `Showroom_Quotation_${group.target_code}`;
+            break;
+          case "invoice":
+            pdfGenerator = (await import("../../lib/utils/showroom/showroomInvoice")).default;
+            fileName = `Showroom_Invoice_${group.target_code}`;
+            break;
+          case "receipt":
+            pdfGenerator = (await import("../../lib/utils/showroom/showroomReceipt")).default;
+            fileName = `Showroom_Receipt_${group.target_code}`;
+            break;
+          case "delivery_note":
+            pdfGenerator = (await import("../../lib/utils/showroom/showroomDeliveryNote")).default;
+            fileName = `Showroom_DeliveryNote_${group.target_code}`;
+            break;
+        }
+      }
+      
+      if (pdfGenerator) {
+        // Pass returnPdfData=true to get the buffer and skip duplicate checks
+        // This allows regenerating existing documents
+        const pdfBuffer = await pdfGenerator(doc.document_data, true);
+        
+        if (pdfBuffer) {
+          // Convert buffer to blob and trigger download
+          const pdfBlob = new Blob([pdfBuffer], { type: "application/pdf" });
+          const pdfUrl = URL.createObjectURL(pdfBlob);
+          const link = document.createElement("a");
+          link.href = pdfUrl;
+          link.download = `${fileName}_${new Date().getTime()}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(pdfUrl);
+        }
+      }
+    } catch (error) {
+      console.error("Error regenerating document:", error);
+      alert(`Failed to regenerate ${doc.document_type}`);
+    } finally {
+      setGeneratingSingle(prev => {
+        const next = new Set(prev);
+        next.delete(docId);
+        return next;
+      });
+    }
+  }
+
+  async function downloadAllDocuments(group: Group) {
+    setDownloadingDocs(prev => new Set(prev).add(group.key));
+    
+    try {
+      const documents = documentsList.get(group.key) || [];
+      const zip = new JSZip();
+      let hasErrors = false;
+      const generatedDocs: Array<{ type: string; buffer: ArrayBuffer }> = [];
+      
+      for (const doc of documents) {
+        try {
+          let pdfGenerator;
+          let docTypeLabel = "";
+          
+          if (group.target === "Dealer") {
+            switch (doc.document_type) {
+              case "quotation":
+                pdfGenerator = (await import("../../lib/utils/dealer/dealerQuotation")).default;
+                docTypeLabel = "Quotation";
+                break;
+              case "invoice":
+                pdfGenerator = (await import("../../lib/utils/dealer/dealerInvoice")).default;
+                docTypeLabel = "Invoice";
+                break;
+              case "receipt":
+                pdfGenerator = (await import("../../lib/utils/dealer/dealerReceipt")).default;
+                docTypeLabel = "Receipt";
+                break;
+              case "delivery_note":
+                pdfGenerator = (await import("../../lib/utils/dealer/dealerDeliveryNote")).default;
+                docTypeLabel = "DeliveryNote";
+                break;
+            }
+          } else {
+            switch (doc.document_type) {
+              case "quotation":
+                pdfGenerator = (await import("../../lib/utils/showroom/showroomQuotation")).default;
+                docTypeLabel = "Quotation";
+                break;
+              case "invoice":
+                pdfGenerator = (await import("../../lib/utils/showroom/showroomInvoice")).default;
+                docTypeLabel = "Invoice";
+                break;
+              case "receipt":
+                pdfGenerator = (await import("../../lib/utils/showroom/showroomReceipt")).default;
+                docTypeLabel = "Receipt";
+                break;
+              case "delivery_note":
+                pdfGenerator = (await import("../../lib/utils/showroom/showroomDeliveryNote")).default;
+                docTypeLabel = "DeliveryNote";
+                break;
+            }
+          }
+          
+          if (pdfGenerator) {
+            // Call the PDF generator with returnPdfData=true to get the buffer instead of auto-download
+            const pdfBuffer = await pdfGenerator(doc.document_data, true);
+            
+            if (pdfBuffer) {
+              generatedDocs.push({ 
+                type: docTypeLabel, 
+                buffer: pdfBuffer as ArrayBuffer 
+              });
+            }
+          }
+        } catch (err) {
+          console.error(`Error generating ${doc.document_type}:`, err);
+          hasErrors = true;
+        }
+      }
+      
+      // Add all generated PDFs to the ZIP file
+      for (let i = 0; i < generatedDocs.length; i++) {
+        const genDoc = generatedDocs[i];
+        const fileName = `${i + 1}_${genDoc.type}_${group.target_code}_${new Date(group.date).getTime()}.pdf`;
+        zip.file(fileName, genDoc.buffer);
+      }
+      
+      // Generate and download the ZIP
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const zipUrl = URL.createObjectURL(zipBlob);
+      const zipLink = document.createElement("a");
+      zipLink.href = zipUrl;
+      zipLink.download = `${group.target}_${group.target_code}_Documents_${new Date(group.date).toISOString().split("T")[0]}.zip`;
+      document.body.appendChild(zipLink);
+      zipLink.click();
+      document.body.removeChild(zipLink);
+      URL.revokeObjectURL(zipUrl);
+      
+      if (hasErrors) {
+        alert("Some documents failed to generate. Check the browser console for details.");
+      } else {
+        alert("All documents downloaded successfully!");
+      }
+    } catch (error) {
+      console.error("Error downloading documents:", error);
+      alert("Failed to download documents. Please try downloading individually.");
+    } finally {
+      setDownloadingDocs(prev => {
+        const next = new Set(prev);
+        next.delete(group.key);
+        return next;
+      });
+    }
   }
 
   return (
@@ -258,6 +593,20 @@ export default function IssuedHistoryPage() {
                         </div>
 
                         <div className="flex items-center gap-3 ml-4">
+                          {/* Get Copies Button */}
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              getExistingDocuments(group);
+                            }}
+                            className="dark:border-white/10 dark:text-slate-300"
+                          >
+                            <Download className="w-3.5 h-3.5 mr-1" /> 
+                            Get Copies
+                          </Button>
+
                           {/* Doc buttons — always visible */}
                           <div className="hidden md:flex gap-2" onClick={(e) => e.stopPropagation()}>
                             <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Quotation")} className="dark:border-white/10 dark:text-slate-300">
@@ -364,6 +713,81 @@ export default function IssuedHistoryPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Documents Popup Modal */}
+      {showDocsPopup && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setShowDocsPopup(null)}>
+          <div className="bg-white dark:bg-slate-900 rounded-xl p-6 max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold dark:text-white">Generated Documents</h3>
+              <button
+                className="text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                onClick={() => setShowDocsPopup(null)}
+              >
+                ✕
+              </button>
+            </div>
+            <div className="space-y-2">
+              {documentsList.get(showDocsPopup)?.map((doc) => {
+                const group = groups.find(g => g.key === showDocsPopup);
+                const docId = `${doc.id}-${doc.document_type}`;
+                return group && (
+                  <div key={doc.id} className="flex justify-between items-center p-3 border rounded-lg dark:border-white/10">
+                    <div>
+                      <p className="font-medium capitalize dark:text-white">{doc.document_type}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{doc.document_number}</p>
+                      <p className="text-xs text-slate-400">{new Date(doc.generated_at).toLocaleString()}</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => regenerateSingleDocument(doc, group)}
+                      disabled={generatingSingle.has(docId)}
+                    >
+                      {generatingSingle.has(docId) ? (
+                        <>
+                          <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Eye className="w-3.5 h-3.5 mr-1" />
+                          View/Download
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                );
+              })}
+              <div className="pt-4">
+                <Button 
+                  className="w-full"
+                  onClick={() => {
+                    const group = groups.find(g => g.key === showDocsPopup);
+                    if (group) {
+                      downloadAllDocuments(group);
+                    }
+                    setShowDocsPopup(null);
+                  }}
+                  disabled={downloadingDocs.has(showDocsPopup)}
+                >
+                  {downloadingDocs.has(showDocsPopup) ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Downloading...
+                    </>
+                  ) : (
+                    <>
+                      <Download className="w-4 h-4 mr-2" />
+                      Download All as ZIP
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

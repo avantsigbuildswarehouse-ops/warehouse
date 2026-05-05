@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 
-const generateCompanyQuotationPdf = async (quotationData: any) => {
+const generateCompanyInvoicePdf = async (invoiceData: any) => {
   const doc = new jsPDF("p", "mm", "a4");
 
   // Load logo
@@ -32,20 +32,20 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
 
   doc.setFont("times", "bold");
   doc.setFontSize(18);
-  doc.text("COMPANY QUOTATION", 105, 25, { align: "center" });
+  doc.text("TAX INVOICE", 105, 25, { align: "center" });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Quotation No:", 140, 16);
+  doc.text("Invoice No:", 140, 16);
   doc.text("Date:", 140, 22);
-  doc.text("Valid Until:", 140, 28);
+  doc.text("Due Date:", 140, 28);
 
   doc.setFont("helvetica", "bold");
-  doc.text(quotationData.id?.toString() || "-", 165, 16);
-  doc.text(new Date(quotationData.created_at || Date.now()).toLocaleDateString(), 165, 22);
-  const validUntil = new Date();
-  validUntil.setDate(validUntil.getDate() + 30);
-  doc.text(validUntil.toLocaleDateString(), 165, 28);
+  doc.text(invoiceData.id?.toString() || "-", 165, 16);
+  doc.text(new Date(invoiceData.created_at || Date.now()).toLocaleDateString(), 165, 22);
+  const dueDate = new Date();
+  dueDate.setDate(dueDate.getDate() + 30);
+  doc.text(dueDate.toLocaleDateString(), 165, 28);
 
   doc.setFont("helvetica", "normal");
   doc.text("Print Date:", 15, 35);
@@ -61,10 +61,10 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   doc.rect(15, y, 180, 10, "F");
   doc.setFontSize(11);
   doc.setFont("helvetica", "bold");
-  doc.text("COMPANY DETAILS", 18, y + 6);
+  doc.text("BILL TO", 18, y + 6);
   y += 10;
 
-  const company = quotationData.company;
+  const company = invoiceData.company;
   const companyInfo = [
     { label: "Company Name", value: company?.company_name || "-" },
     { label: "BR Number", value: company?.br_no?.toString() || "-" },
@@ -107,7 +107,7 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   y += 8;
 
   // Items
-  const items = quotationData.items || [];
+  const items = invoiceData.items || [];
   items.forEach((item: any) => {
     if (y > 250) {
       doc.addPage();
@@ -133,18 +133,18 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   doc.text("SUMMARY", 18, y + 6);
   y += 10;
 
-  const basePrice = quotationData.base_price || 0;
-  const vat = quotationData.vat || 0;
-  const registrationFee = quotationData.registration_fee || 0;
-  const discount = quotationData.discount || 0;
-  const totalEstimate = basePrice + vat + registrationFee - discount;
+  const basePrice = invoiceData.base_price || 0;
+  const vat = invoiceData.vat || 0;
+  const registrationFee = invoiceData.registration_fee || 0;
+  const discount = invoiceData.discount || 0;
+  const total = basePrice + vat + registrationFee - discount;
 
   const summaryRows = [
     { label: "Base Price", value: basePrice },
     { label: "VAT", value: vat },
     { label: "Registration Fee", value: registrationFee },
     { label: "Discount", value: discount, isNegative: true },
-    { label: "Total Estimate", value: totalEstimate, isBold: true },
+    { label: "Total Amount", value: total, isBold: true },
   ];
 
   summaryRows.forEach((row) => {
@@ -171,7 +171,7 @@ const generateCompanyQuotationPdf = async (quotationData: any) => {
   doc.text("613 Bangalawa junction, Ethu Kotte, Kotte", 15, 282);
   doc.text("0777 411 011", 195, 278, { align: "right" });
 
-  doc.save(`Company_Quotation_${quotationData.id}.pdf`);
+  doc.save(`Company_Invoice_${invoiceData.id}.pdf`);
 };
 
-export default generateCompanyQuotationPdf;
+export default generateCompanyInvoicePdf;
