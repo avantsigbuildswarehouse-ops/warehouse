@@ -5,12 +5,6 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireSalesRoute } from "@/lib/auth/require-sales-route";
 
 type SaleItem = { type: "Bike" | "Spare"; id: string };
-type SoldBikeRow = {
-  id: string;
-  engine_number: string | null;
-  chassis_number: string | null;
-  color: string | null;
-};
 const supabaseAdmin = getSupabaseAdmin();
 
 export async function POST(req: Request) {
@@ -59,19 +53,40 @@ export async function POST(req: Request) {
     const spareTable = targetType === "dealer" ? "dealer_spare_inventory" : "showroom_spare_inventory";
     const codeField = targetType === "dealer" ? "dealer_code" : "showroom_code";
 
-    const { data: companyRow, error: companyErr } = await supabaseAdmin
+    const existingCompany = await supabaseAdmin
       .from("Companies")
-      .insert({
-        company_name: company.company_name,
-        company_email: company.company_email,
-        company_contact: company.company_contact ?? null,
-        address: company.address ?? null,
-        BR_no: company.br_no ?? null,
-        VAT_no: company.vat_no ?? null,
-      })
-      .select()
-      .single();
-    if (companyErr) return NextResponse.json({ error: companyErr.message }, { status: 500 });
+      .select('id, company_name, company_email, company_contact, address, "BR_no", "VAT_no"')
+      .eq("company_email", company.company_email)
+      .maybeSingle();
+    if (existingCompany.error) {
+      return NextResponse.json({ error: existingCompany.error.message }, { status: 500 });
+    }
+
+    let companyRow = existingCompany.data;
+    if (!companyRow) {
+      const createdCompany = await supabaseAdmin
+        .from("Companies")
+        .insert({
+          company_name: company.company_name,
+          company_email: company.company_email,
+          company_contact: company.company_contact ?? null,
+          address: company.address ?? null,
+          BR_no: company.br_no ?? null,
+          VAT_no: company.vat_no ?? null,
+        })
+        .select()
+        .single();
+
+      if (createdCompany.error) {
+        return NextResponse.json({ error: createdCompany.error.message }, { status: 500 });
+      }
+
+      companyRow = createdCompany.data;
+    }
+
+    if (!companyRow) {
+      return NextResponse.json({ error: "Failed to create company" }, { status: 500 });
+    }
 
     const base = Number(payment.base_price || 0);
     const reg = Number(payment.registration_fee || 0);
@@ -160,4 +175,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
-

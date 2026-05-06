@@ -9,16 +9,21 @@ import { getSalesHistoryData } from "@/lib/sales/history";
 
 export default async function DealerCompanyPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ dealerCode: string }>;
+  searchParams?: Promise<{ stage?: string }>;
 }) {
   await requireRole(["dealer-admin"]);
 
   const { dealerCode } = await params;
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const stageFilter = resolvedSearchParams?.stage === "advance" ? "advance" : "all";
   const data = await getSalesHistoryData({
     buyerType: "company",
     targetType: "dealer",
     targetCode: dealerCode,
+    stageFilter,
   });
 
   return (
@@ -28,22 +33,39 @@ export default async function DealerCompanyPage({
           <div className="flex justify-between">
             <div>
               <Badge className="mb-3 bg-sky-100 text-sky-700 dark:bg-sky-500/20 dark:text-sky-300">
-                Dealer Company Sales
+                {stageFilter === "advance" ? "Dealer Company Advance Payments" : "Dealer Company Sales"}
               </Badge>
               <h1 className="text-4xl font-bold text-slate-900 dark:text-white">{dealerCode}</h1>
               <p className="text-slate-600 dark:text-slate-400">
-                Completed company sales with item details and downloadable documents.
+                {stageFilter === "advance"
+                  ? "Company advance-payment bookings with buyer details, Performer Invoices, and Pre-Order Quotations."
+                  : "Company on-site sales and advance-payment records with buyer details and downloadable document copies."}
               </p>
             </div>
-
+            <Button asChild variant="outline">
+              <Link href={`/dealer/${dealerCode}`}>
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back
+              </Link>
+            </Button>
           </div>
         </div>
 
         <SalesDocumentsHistory
           data={data}
-          title="Company Sales"
-          description="Each entry represents a completed company sale. Expand a sale to see the sold bikes, chassis details, spares, and payment breakdown."
+          title={stageFilter === "advance" ? "Company Advance Payments" : "Company Sales"}
+          description={
+            stageFilter === "advance"
+              ? "Each entry represents a company advance-payment booking. Expand a record to view company details, requested vehicle model, payment breakdown, and use Get Copies to reopen the saved Performer Invoice and Pre-Order Quotation."
+              : "Each entry represents either a completed company sale or an advance-payment booking. Expand a record to view company details, sold item or pre-order details, and use Get Copies to reopen saved PDFs."
+          }
           buyerLabel="Company"
+          groupsLabel={stageFilter === "advance" ? "Advance payment records" : undefined}
+          vehiclesLabel={stageFilter === "advance" ? "Requested vehicles" : undefined}
+          sparesLabel={stageFilter === "advance" ? "Spare requests" : undefined}
+          emptyMessage={
+            stageFilter === "advance" ? "No company advance-payment records found yet." : undefined
+          }
         />
       </div>
     </div>

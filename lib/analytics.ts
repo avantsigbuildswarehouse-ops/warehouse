@@ -178,6 +178,8 @@ export async function getPartnerAnalytics(
 
   const vehicleInventory = (vehicleResult.data ?? []) as InventoryVehicleRow[];
   const spareInventory = (spareResult.data ?? []) as InventorySpareRow[];
+  const activeVehicleInventory = vehicleInventory.filter((item) => !item.sold_at);
+  const activeSpareInventory = spareInventory.filter((item) => !item.sold_at);
   const sales = (salesResult.data ?? []) as SalesOrderRow[];
   const saleItems = (saleItemsResult.data ?? []) as SaleItemRow[];
 
@@ -234,15 +236,15 @@ export async function getPartnerAnalytics(
       sparesSold: soldSpares.length,
       bikeSalesValue: soldVehicles.reduce((sum, item) => sum + item.soldValue, 0),
       spareSalesValue: soldSpares.reduce((sum, item) => sum + item.soldValue, 0),
-      bikeInventoryUnits: vehicleInventory.length,
-      spareInventoryUnits: spareInventory.length,
-      bikeInventoryValue: vehicleInventory.reduce((sum, item) => sum + toNumber(item.price), 0),
-      spareInventoryValue: spareInventory.reduce((sum, item) => sum + toNumber(item.price), 0),
+      bikeInventoryUnits: activeVehicleInventory.length,
+      spareInventoryUnits: activeSpareInventory.length,
+      bikeInventoryValue: activeVehicleInventory.reduce((sum, item) => sum + toNumber(item.price), 0),
+      spareInventoryValue: activeSpareInventory.reduce((sum, item) => sum + toNumber(item.price), 0),
     },
     soldVehicles,
     soldSpares,
-    vehicleInventory,
-    spareInventory,
+    vehicleInventory: activeVehicleInventory,
+    spareInventory: activeSpareInventory,
   };
 }
 
@@ -344,10 +346,10 @@ export async function getAdminAnalytics(): Promise<AdminAnalyticsData> {
       totalShowrooms: showroomCodes.size,
       warehouseVehicleUnits: warehouseVehicles.summary.totalUnits,
       warehouseSpareUnits: warehouseSpares.summary.totalUnits,
-      assignedDealerVehicles: (dealerVehiclesResult.data ?? []).length,
-      assignedDealerSpares: (dealerSparesResult.data ?? []).length,
-      assignedShowroomVehicles: (showroomVehiclesResult.data ?? []).length,
-      assignedShowroomSpares: (showroomSparesResult.data ?? []).length,
+      assignedDealerVehicles: ((dealerVehiclesResult.data ?? []) as Array<{ sold_at: string | null }>).filter((item) => !item.sold_at).length,
+      assignedDealerSpares: ((dealerSparesResult.data ?? []) as Array<{ sold_at: string | null }>).filter((item) => !item.sold_at).length,
+      assignedShowroomVehicles: ((showroomVehiclesResult.data ?? []) as Array<{ sold_at: string | null }>).filter((item) => !item.sold_at).length,
+      assignedShowroomSpares: ((showroomSparesResult.data ?? []) as Array<{ sold_at: string | null }>).filter((item) => !item.sold_at).length,
       totalBikesSold,
       totalSparesSold,
       totalSalesValue: sales.reduce((sum, sale) => sum + toNumber(sale.total), 0),

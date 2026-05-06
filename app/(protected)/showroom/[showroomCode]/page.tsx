@@ -1,7 +1,6 @@
 
 import Link from "next/link";
 import {
-  ArrowLeft,
   Bike,
   CircleDollarSign,
   PackageOpen,
@@ -105,7 +104,7 @@ async function getShowroomStock(showroomCode: string): Promise<StockData> {
     const soldVehiclesCount = (sold_vehicles || []).length;
     const soldSparesCount = (sold_spares || []).length;
     const lastIssue =
-      [...(vehicles || []), ...(spares || [])]
+      [...(vehicles || []), ...(spares || []), ...(sold_vehicles || []), ...(sold_spares || [])]
         .map((item: { issued_at?: string | null }) => item.issued_at)
         .filter(Boolean)
         .sort()
@@ -150,12 +149,6 @@ export default async function ShowroomStockPage({
     return (
       <div className="min-h-full bg-slate-50 transition-colors dark:bg-[#080B14]">
         <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-          <Button asChild variant="outline">
-            <Link href="/dealer">
-              <ArrowLeft className="mr-2 size-4" />
-              Back
-            </Link>
-          </Button>
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/20 dark:bg-red-900/10">
             <p className="text-sm text-red-700 dark:text-red-400">
               Error: {error}
@@ -187,7 +180,7 @@ export default async function ShowroomStockPage({
             variant="outline"
             className="mb-6 w-fit border-sky-200/60 bg-sky-50/60 text-sky-700 backdrop-blur dark:border-sky-500/30 dark:bg-sky-500/10 dark:text-sky-300"
           >
-            Dealer Admin
+            Showroom Admin
           </Badge>
           <div className="relative z-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="space-y-3">
@@ -199,15 +192,37 @@ export default async function ShowroomStockPage({
               </p>
             </div>
 
-            <div className="flex flex-wrap gap-4">
-              <Button
-                asChild
-                className="rounded-xl shadow-md transition-all hover:-translate-y-0.5 dark:bg-sky-500 dark:text-white dark:hover:bg-sky-400"
-              >
-                <Link href="/dealer/Inventory">Request Stock</Link>
-              </Button>
-            </div>
           </div>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          <Card className="border-sky-200/60 bg-white/85 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
+            <CardHeader className="space-y-3">
+              <CardTitle className="text-xl text-slate-900 dark:text-white">Customer Billing History</CardTitle>
+              <CardDescription className="text-slate-600 dark:text-slate-400">
+                View on-site sales, advance-payment customer details, and get copies of generated documents.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild className="rounded-xl">
+                <Link href={`/showroom/${showroomCode}/Customer`}>Open Customer Records</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-sky-200/60 bg-white/85 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
+            <CardHeader className="space-y-3">
+              <CardTitle className="text-xl text-slate-900 dark:text-white">Company Billing History</CardTitle>
+              <CardDescription className="text-slate-600 dark:text-slate-400">
+                View company advance payments, completed sales, customer details, and document copies.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild className="rounded-xl">
+                <Link href={`/showroom/${showroomCode}/Company`}>Open Company Records</Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Stats Section */}
@@ -278,7 +293,7 @@ export default async function ShowroomStockPage({
               </CardDescription>
               <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
                 <div className="rounded-xl bg-sky-100 p-2.5 dark:bg-sky-500/20">
-                  <Bike className="size-6 text-sky-600 dark:text-sky-400" />
+                  <Wrench className="size-6 text-sky-600 dark:text-sky-400" />
                 </div>
                 {formatNumber(stockData.stats.soldSparesCount)}
               </CardTitle>

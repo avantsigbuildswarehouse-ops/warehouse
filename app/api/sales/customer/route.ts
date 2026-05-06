@@ -5,12 +5,6 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireSalesRoute } from "@/lib/auth/require-sales-route";
 
 type SaleItem = { type: "Bike" | "Spare"; id: string };
-type SoldBikeRow = {
-  id: string;
-  engine_number: string | null;
-  chassis_number: string | null;
-  color: string | null;
-};
 const supabaseAdmin = getSupabaseAdmin();
 
 export async function POST(req: Request) {
@@ -58,19 +52,39 @@ export async function POST(req: Request) {
     const spareTable = targetType === "dealer" ? "dealer_spare_inventory" : "showroom_spare_inventory";
     const codeField = targetType === "dealer" ? "dealer_code" : "showroom_code";
 
-    // Create customer
-    const { data: customerRow, error: customerErr } = await supabaseAdmin
+    const existingCustomer = await supabaseAdmin
       .from("Customers")
-      .insert({
-        first_name: customer.first_name,
-        last_name: customer.last_name,
-        phone_number: customer.phone_number,
-        address: customer.address ?? null,
-        nic: customer.nic ?? null,
-      })
-      .select()
-      .single();
-    if (customerErr) return NextResponse.json({ error: customerErr.message }, { status: 500 });
+      .select("id, first_name, last_name, phone_number, address, nic")
+      .eq("phone_number", customer.phone_number)
+      .maybeSingle();
+    if (existingCustomer.error) {
+      return NextResponse.json({ error: existingCustomer.error.message }, { status: 500 });
+    }
+
+    let customerRow = existingCustomer.data;
+    if (!customerRow) {
+      const createdCustomer = await supabaseAdmin
+        .from("Customers")
+        .insert({
+          first_name: customer.first_name,
+          last_name: customer.last_name,
+          phone_number: customer.phone_number,
+          address: customer.address ?? null,
+          nic: customer.nic ?? null,
+        })
+        .select()
+        .single();
+
+      if (createdCustomer.error) {
+        return NextResponse.json({ error: createdCustomer.error.message }, { status: 500 });
+      }
+
+      customerRow = createdCustomer.data;
+    }
+
+    if (!customerRow) {
+      return NextResponse.json({ error: "Failed to create customer" }, { status: 500 });
+    }
 
     const base = Number(payment.base_price || 0);
     const reg = Number(payment.registration_fee || 0);
@@ -161,4 +175,3 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
-

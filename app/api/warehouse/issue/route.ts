@@ -1,10 +1,31 @@
 //;
 import { NextResponse } from "next/server";
+import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 const supabaseAdmin = getSupabaseAdmin();
 
+type WarehouseBikeRow = {
+  model_code: string;
+  engine_number: string;
+  chassis_number: string;
+  color: string | null;
+  yom: string | null;
+  version: string | null;
+  price: number | string | null;
+};
+
+type WarehouseSpareRow = {
+  model_code: string;
+  spare_code: string;
+  serial_number: string;
+  price: number | string | null;
+};
+
 export async function POST(req: Request) {
+  const authError = await requireAdminRoute();
+  if (authError) return authError;
+
   try {
     const body = await req.json();
     const { targetType, targetCode, itemType, items } = body;
@@ -19,6 +40,15 @@ export async function POST(req: Request) {
     const issuedAt = new Date().toISOString();
 
     const cleanItems = items.map((x: string) => x.trim());
+    const isShowroomTarget = targetType === "ASB_Showroom";
+    const isDealerTarget = targetType === "Dealer";
+
+    if ((!isShowroomTarget && !isDealerTarget) || !["Bike", "Spare"].includes(itemType)) {
+      return NextResponse.json(
+        { error: "Invalid targetType or itemType" },
+        { status: 400 }
+      );
+    }
 
     // ======================================================
     // 🚗 BIKE ISSUE FLOW
@@ -37,16 +67,19 @@ export async function POST(req: Request) {
       if (!fetchBikes || fetchBikes.length === 0) {
         throw new Error("No AVAILABLE bikes found (check status or engine numbers)");
       }
+      if (fetchBikes.length !== cleanItems.length) {
+        throw new Error("Some selected bikes are no longer available");
+      }
 
       const insertTable =
-        targetType === "ASB_Showroom"
+        isShowroomTarget
           ? "showroom_vehicle_inventory"
           : "dealer_vehicle_inventory";
 
       const assignField =
-        targetType === "ASB_Showroom" ? "showroom_code" : "dealer_code";
+        isShowroomTarget ? "showroom_code" : "dealer_code";
 
-      const insertPayload = fetchBikes.map((bike: any) => ({
+      const insertPayload = (fetchBikes as WarehouseBikeRow[]).map((bike) => ({
         [assignField]: targetCode,
         model_code: bike.model_code,
         engine_number: bike.engine_number,
@@ -86,7 +119,7 @@ export async function POST(req: Request) {
 
       // 📉 DECREMENT warehouse_quantity for each model
       const modelGroups = new Map<string, number>();
-      updatedBikes.forEach((bike: any) => {
+      (updatedBikes as WarehouseBikeRow[]).forEach((bike) => {
         const count = (modelGroups.get(bike.model_code) || 0) + 1;
         modelGroups.set(bike.model_code, count);
       });
@@ -136,16 +169,19 @@ export async function POST(req: Request) {
       if (!fetchSpares || fetchSpares.length === 0) {
         throw new Error("No AVAILABLE spares found (check status or serial numbers)");
       }
+      if (fetchSpares.length !== cleanItems.length) {
+        throw new Error("Some selected spares are no longer available");
+      }
 
       const insertTable =
-        targetType === "ASB_Showroom"
+        isShowroomTarget
           ? "showroom_spare_inventory"
           : "dealer_spare_inventory";
 
       const assignField =
-        targetType === "ASB_Showroom" ? "showroom_code" : "dealer_code";
+        isShowroomTarget ? "showroom_code" : "dealer_code";
 
-      const insertPayload = fetchSpares.map((spare: any) => ({
+      const insertPayload = (fetchSpares as WarehouseSpareRow[]).map((spare) => ({
         [assignField]: targetCode,
         model_code: spare.model_code,
         spare_code: spare.spare_code,
@@ -182,7 +218,7 @@ export async function POST(req: Request) {
 
       // 📉 DECREMENT warehouse_quantity for each spare
       const spareGroups = new Map<string, number>();
-      updatedSpares.forEach((spare: any) => {
+      (updatedSpares as WarehouseSpareRow[]).forEach((spare) => {
         const count = (spareGroups.get(spare.spare_code) || 0) + 1;
         spareGroups.set(spare.spare_code, count);
       });
@@ -220,11 +256,12 @@ export async function POST(req: Request) {
       { error: "Invalid itemType" },
       { status: 400 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Issue Stock Error:", error);
+    const message = error instanceof Error ? error.message : "Failed to process issue";
 
     return NextResponse.json(
-      { error: error.message || "Failed to process issue" },
+      { error: message },
       { status: 500 }
     );
   }

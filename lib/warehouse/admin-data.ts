@@ -27,6 +27,7 @@ type SpareInventoryRow = {
   model_code: string;
   spare_code: string;
   serial_number: string;
+  status: string;
 };
 
 type SpareCodeRow = {
@@ -75,6 +76,14 @@ export async function getVehicleInventoryDetails() {
   const inventory = (data ?? []) as VehicleInventoryRow[];
   const models = await getVehicleModels();
   const modelMap = new Map(models.map((model) => [model.model_code, model]));
+  const warehouseUnits = models.reduce(
+    (sum, model) => sum + toNumber(model.warehouse_quantity),
+    0
+  );
+  const warehouseValue = models.reduce(
+    (sum, model) => sum + toNumber(model.warehouse_quantity) * toNumber(model.price),
+    0
+  );
 
   const items = inventory.map((item) => {
     const model = modelMap.get(item.model_code);
@@ -90,9 +99,9 @@ export async function getVehicleInventoryDetails() {
 
   return {
     summary: {
-      totalUnits: items.length,
+      totalUnits: warehouseUnits,
       totalModels: new Set(items.map((item) => item.model_code)).size,
-      totalValue: items.reduce((sum, item) => sum + item.price, 0),
+      totalValue: warehouseValue,
     },
     items,
   };
@@ -141,8 +150,9 @@ export async function getSpareInventoryDetails() {
   const spareMap = new Map(
     spareCodes.map((spare) => [spare.spare_code, spare] as const)
   );
+  const availableInventory = inventory.filter((item) => item.status === "AVAILABLE");
 
-  const items = inventory.map((item) => {
+  const items = availableInventory.map((item) => {
     const model = modelMap.get(item.model_code);
     const spare = spareMap.get(item.spare_code);
 
@@ -158,9 +168,12 @@ export async function getSpareInventoryDetails() {
 
   return {
     summary: {
-      totalUnits: items.length,
-      totalSpareTypes: new Set(items.map((item) => item.spare_code)).size,
-      totalValue: items.reduce((sum, item) => sum + item.price, 0),
+      totalUnits: spareCodes.reduce((sum, item) => sum + toNumber(item.warehouse_quantity), 0),
+      totalSpareTypes: new Set(spareCodes.map((item) => item.spare_code)).size,
+      totalValue: spareCodes.reduce(
+        (sum, item) => sum + toNumber(item.warehouse_quantity) * toNumber(item.price),
+        0
+      ),
     },
     items,
   };

@@ -3,7 +3,6 @@ import {
   Bike,
   CircleDollarSign,
   PackageOpen,
-  ShieldCheck,
   Wrench,
 } from "lucide-react";
 

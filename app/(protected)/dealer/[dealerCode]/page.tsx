@@ -1,7 +1,6 @@
 
 import Link from "next/link";
 import {
-  ArrowLeft,
   Bike,
   CircleDollarSign,
   PackageOpen,
@@ -105,7 +104,7 @@ async function getDealerStock(dealerCode: string): Promise<StockData> {
     const soldVehicles = (sold_vehicles || []).length;
     const soldSpares = (sold_spares || []).length;
     const lastIssue =
-      [...(vehicles || []), ...(spares || [])]
+      [...(vehicles || []), ...(spares || []), ...(sold_vehicles || []), ...(sold_spares || [])]
         .map((item: { issued_at?: string | null }) => item.issued_at)
         .filter(Boolean)
         .sort()
@@ -150,12 +149,7 @@ export default async function DealerStockPage({
     return (
       <div className="min-h-full bg-slate-50 transition-colors dark:bg-[#080B14]">
         <div className="mx-auto max-w-7xl space-y-6 px-4 py-8 sm:px-6 lg:px-8">
-          <Button asChild variant="outline">
-            <Link href="/dealer">
-              <ArrowLeft className="mr-2 size-4" />
-              Back
-            </Link>
-          </Button>
+
           <div className="rounded-xl border border-red-200 bg-red-50 p-4 dark:border-red-900/20 dark:bg-red-900/10">
             <p className="text-sm text-red-700 dark:text-red-400">
               Error: {error}
@@ -208,6 +202,36 @@ export default async function DealerStockPage({
               </Button>
             </div>
           </div>
+        </div>
+
+        <div className="grid gap-5 md:grid-cols-2">
+          <Card className="border-sky-200/60 bg-white/85 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
+            <CardHeader className="space-y-3">
+              <CardTitle className="text-xl text-slate-900 dark:text-white">Customer Billing History</CardTitle>
+              <CardDescription className="text-slate-600 dark:text-slate-400">
+                View on-site sales, advance-payment customer details, and get copies of generated documents.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild className="rounded-xl">
+                <Link href={`/dealer/${dealerCode}/Customer`}>Open Customer Records</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-sky-200/60 bg-white/85 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
+            <CardHeader className="space-y-3">
+              <CardTitle className="text-xl text-slate-900 dark:text-white">Company Billing History</CardTitle>
+              <CardDescription className="text-slate-600 dark:text-slate-400">
+                View company advance payments, completed sales, customer details, and document copies.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild className="rounded-xl">
+                <Link href={`/dealer/${dealerCode}/Company`}>Open Company Records</Link>
+              </Button>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Stats Section */}
@@ -278,7 +302,7 @@ export default async function DealerStockPage({
               </CardDescription>
               <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
                 <div className="rounded-xl bg-sky-100 p-2.5 dark:bg-sky-500/20">
-                  <Bike className="size-6 text-sky-600 dark:text-sky-400" />
+                  <Wrench className="size-6 text-sky-600 dark:text-sky-400" />
                 </div>
                 {formatNumber(stockData.stats.soldSpares)}
               </CardTitle>

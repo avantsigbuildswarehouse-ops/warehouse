@@ -66,7 +66,7 @@ const generateDealerInvoicePdf = async (invoiceData: DealerInvoiceData, returnPd
 
   doc.setFont("times", "bold");
   doc.setFontSize(18);
-  doc.text("DEALER INVOICE", 105, 25, { align: "center" });
+  doc.text("INVOICE", 105, 25, { align: "center" });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");

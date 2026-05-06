@@ -72,7 +72,7 @@ const generateDealerReceiptPdf = async (receiptData: DealerReceiptData, returnPd
 
   doc.setFont("times", "bold");
   doc.setFontSize(18);
-  doc.text("DEALER PAYMENT RECEIPT", 105, 25, { align: "center" });
+  doc.text("PAYMENT RECEIPT", 105, 25, { align: "center" });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");

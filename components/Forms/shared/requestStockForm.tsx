@@ -75,13 +75,17 @@ export default function RequestStockForm({ config }: { config: RequestFormConfig
   }, [bikes]);
 
   const availableSpareTypes = useMemo(() => {
-    const map = new Map<string, { name: string }>();
+    const map = new Map<string, { name: string; modelCode: string }>();
     spares.forEach((item) => {
-      if (!map.has(item.model_code)) {
-        map.set(item.model_code, { name: item.spare_name });
+      if (!map.has(item.spare_code)) {
+        map.set(item.spare_code, { name: item.spare_name, modelCode: item.model_code });
       }
     });
-    return Array.from(map.entries()).map(([code, data]) => ({ code, name: data.name }));
+    return Array.from(map.entries()).map(([code, data]) => ({
+      code,
+      name: data.name,
+      modelCode: data.modelCode,
+    }));
   }, [spares]);
 
   const availableColorsForModel = useMemo(() => {
@@ -95,7 +99,7 @@ export default function RequestStockForm({ config }: { config: RequestFormConfig
         if (color) return bikes.filter((item) => item.model_code === modelCode && item.color === color).length;
         return bikes.filter((item) => item.model_code === modelCode).length;
       }
-      return spares.filter((item) => item.model_code === modelCode).length;
+      return spares.filter((item) => item.spare_code === modelCode).length;
     },
     [bikes, itemType, spares],
   );
@@ -123,7 +127,7 @@ export default function RequestStockForm({ config }: { config: RequestFormConfig
               !requestedEngineNumbers.has(item.engine_number),
           )
         : spares.filter(
-            (item) => item.model_code === selectedModel && !requestedSerialNumbers.has(item.serial_number),
+            (item) => item.spare_code === selectedModel && !requestedSerialNumbers.has(item.serial_number),
           );
 
     const selectedItems = availableItems.slice(0, requestQuantity);
@@ -390,7 +394,7 @@ export default function RequestStockForm({ config }: { config: RequestFormConfig
                         ))
                       : availableSpareTypes.map((item) => (
                           <option key={item.code} value={item.code}>
-                            {item.name} ({getAvailableCount(item.code)} available)
+                            {item.name} - {item.code} ({getAvailableCount(item.code)} available)
                           </option>
                         ))}
                   </select>

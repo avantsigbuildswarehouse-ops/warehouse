@@ -22,6 +22,14 @@ type SalesOrderRow = {
   total: number | string | null;
 };
 
+type SalesDocumentRow = {
+  id: string;
+  document_number: string;
+  document_type: string;
+  generated_at: string | null;
+  document_data: Record<string, unknown> | null;
+};
+
 type SaleItemRow = {
   sale_id: string;
   item_type: "Bike" | "Spare";
@@ -105,6 +113,7 @@ export type SaleHistoryCompany = {
 
 export type SaleHistoryGroup = {
   id: string;
+  saleStage: "completed" | "advance";
   buyerType: BuyerType;
   targetType: TargetType;
   targetCode: string;
@@ -145,10 +154,12 @@ export async function getSalesHistoryData({
   buyerType,
   targetType,
   targetCode,
+  stageFilter = "all",
 }: {
   buyerType: BuyerType;
   targetType: TargetType;
   targetCode: string;
+  stageFilter?: "all" | "completed" | "advance";
 }): Promise<SalesHistoryData> {
   const schema = "ASB showrooms";
   const vehicleTable =
@@ -254,6 +265,28 @@ export async function getSalesHistoryData({
     throw new Error(companiesResult.error.message);
   }
 
+  const documentsTable = buyerType === "customer" ? "customer_documents" : "company_documents";
+  const advanceDocsResult = await supabaseAdmin
+    .from(documentsTable)
+    .select("id, document_number, document_type, generated_at, document_data")
+    .eq("document_type", "invoice")
+    .eq("document_data->>sale_stage", "advance")
+    .eq("document_data->>target_type", targetType)
+    .eq("document_data->>target_code", targetCode)
+    .order("generated_at", { ascending: false });
+
+  if (advanceDocsResult.error) {
+    throw new Error(advanceDocsResult.error.message);
+  }
+
+  const advanceDocsBySaleId = new Map<string, SalesDocumentRow>();
+  for (const doc of (advanceDocsResult.data ?? []) as SalesDocumentRow[]) {
+    const saleId = String(doc.document_data?.group_key || "");
+    if (saleId && !advanceDocsBySaleId.has(saleId)) {
+      advanceDocsBySaleId.set(saleId, doc);
+    }
+  }
+
   const vehicleById = new Map(
     ((vehicleResult.data ?? []) as InventoryVehicleRow[]).map((vehicle) => [vehicle.id, vehicle])
   );
@@ -316,47 +349,86 @@ export async function getSalesHistoryData({
 
   const groups = sales
     .map((sale) => {
-    const customer = sale.customer_id ? customerById.get(sale.customer_id) ?? null : null;
-    const company = sale.company_id ? companyById.get(sale.company_id) ?? null : null;
+      const customer = sale.customer_id ? customerById.get(sale.customer_id) ?? null : null;
+      const company = sale.company_id ? companyById.get(sale.company_id) ?? null : null;
+      const advanceDoc = advanceDocsBySaleId.get(sale.id);
+      const isAdvanceBooking = !itemsBySaleId.has(sale.id) && Boolean(advanceDoc);
+      const advanceData = advanceDoc?.document_data ?? null;
+      const requestedModelName =
+        typeof advanceData?.requested_model_name === "string"
+          ? advanceData.requested_model_name
+          : typeof advanceData?.requested_model_code === "string"
+            ? advanceData.requested_model_code
+            : "Advance Booking";
+      const requestedPrice = advanceData?.requested_price;
+      const items =
+        itemsBySaleId.get(sale.id) ??
+        (isAdvanceBooking
+          ? [
+              {
+                inventoryId: `advance-${sale.id}`,
+                type: "Bike" as const,
+                modelCode: requestedModelName,
+                price:
+                  typeof requestedPrice === "number" || typeof requestedPrice === "string"
+                    ? toNumber(requestedPrice)
+                    : toNumber(sale.base_price),
+                identifier: "PRE-ORDER",
+                engineNumber: null,
+                chassisNumber: null,
+                color: null,
+                yom: null,
+                version: null,
+                spareCode: null,
+                serialNumber: null,
+                soldAt: sale.created_at,
+              },
+            ]
+          : []);
 
-    return {
-      id: sale.id,
-      buyerType: sale.buyer_type,
-      targetType: sale.target_type,
-      targetCode: sale.target_code,
-      createdAt: sale.created_at,
-      basePrice: toNumber(sale.base_price),
-      registrationFee: toNumber(sale.registration_fee),
-      discount: toNumber(sale.discount),
-      advancePayment: toNumber(sale.advance_payment),
-      balanceDue: toNumber(sale.balance_due),
-      total: toNumber(sale.total),
-      paymentMethod: sale.payment_method || "-",
-      items: itemsBySaleId.get(sale.id) ?? [],
-      customer: customer
-        ? {
-            id: customer.id,
-            firstName: customer.first_name,
-            lastName: customer.last_name,
-            phoneNumber: customer.phone_number,
-            address: customer.address,
-            nic: customer.nic,
-          }
-        : null,
-      company: company
-        ? {
-            id: company.id,
-            companyName: company.company_name,
-            companyEmail: company.company_email,
-            companyContact: company.company_contact,
-            address: company.address,
-            brNo: company.BR_no,
-            vatNo: company.VAT_no,
-          }
-        : null,
-    } satisfies SaleHistoryGroup;
+      return {
+        id: sale.id,
+        saleStage: isAdvanceBooking ? "advance" : "completed",
+        buyerType: sale.buyer_type,
+        targetType: sale.target_type,
+        targetCode: sale.target_code,
+        createdAt: sale.created_at,
+        basePrice: toNumber(sale.base_price),
+        registrationFee: toNumber(sale.registration_fee),
+        discount: toNumber(sale.discount),
+        advancePayment: toNumber(sale.advance_payment),
+        balanceDue: toNumber(sale.balance_due),
+        total: toNumber(sale.total),
+        paymentMethod: sale.payment_method || "-",
+        items,
+        customer: customer
+          ? {
+              id: customer.id,
+              firstName: customer.first_name,
+              lastName: customer.last_name,
+              phoneNumber: customer.phone_number,
+              address: customer.address,
+              nic: customer.nic,
+            }
+          : null,
+        company: company
+          ? {
+              id: company.id,
+              companyName: company.company_name,
+              companyEmail: company.company_email,
+              companyContact: company.company_contact,
+              address: company.address,
+              brNo: company.BR_no,
+              vatNo: company.VAT_no,
+            }
+          : null,
+      } satisfies SaleHistoryGroup;
     })
-    .filter((group) => group.items.length > 0);
+    .filter((group) => group.items.length > 0)
+    .filter((group) => {
+      if (stageFilter === "all") return true;
+      return group.saleStage === stageFilter;
+    });
 
   return {
     buyerType,

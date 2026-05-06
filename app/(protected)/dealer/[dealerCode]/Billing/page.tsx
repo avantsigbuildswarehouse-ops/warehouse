@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { useParams } from "next/navigation";
 import { useState } from "react";
 import { Bike, Building2, ReceiptText, User, Wrench } from "lucide-react";
 
@@ -21,10 +23,15 @@ const CATEGORY_CONFIG = {
 };
 
 export default function BillingPage() {
+  const params = useParams<{ dealerCode: string }>();
   const [sellFormType, setSellFormType] = useState<SellFormType>("customer");
   const [billingStage, setBillingStage] = useState<BillingStage>("onsite");
   const [selectedCategory, setSelectedCategory] = useState<ItemCategory>("bikes");
   const isVehicleSale = selectedCategory === "bikes";
+  const historyHref =
+    sellFormType === "customer"
+      ? `/dealer/${params.dealerCode}/Customer?stage=advance`
+      : `/dealer/${params.dealerCode}/Company?stage=advance`;
 
   return (
     <div className="min-h-full bg-slate-50 transition-colors dark:bg-[#080B14]">
@@ -119,7 +126,24 @@ export default function BillingPage() {
         ) : null}
 
         {isVehicleSale && billingStage === "advance" ? (
-          sellFormType === "customer" ? <AdvanceBookingForm buyerType="customer" /> : <AdvanceBookingForm buyerType="company" />
+          <>
+            <Card className="border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900/60">
+              <CardHeader>
+                <CardTitle className="text-lg">Advance Payment Records</CardTitle>
+                <CardDescription>
+                  View only advance-payment bookings, buyer details, Performer Invoices, and Pre-Order Quotations.
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Button asChild variant="outline">
+                  <Link href={historyHref}>
+                    View {sellFormType === "customer" ? "Customer" : "Company"} Advance Payments
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
+            {sellFormType === "customer" ? <AdvanceBookingForm buyerType="customer" /> : <AdvanceBookingForm buyerType="company" />}
+          </>
         ) : null}
 
         {isVehicleSale && billingStage === "collect" ? (

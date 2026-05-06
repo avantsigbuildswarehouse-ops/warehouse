@@ -69,8 +69,11 @@ async function handleBikeRequest(
 
   if (fetchErr) throw new Error(fetchErr.message);
   if (!bikes?.length) throw new Error("No AVAILABLE bikes found");
+  if (bikes.length !== engineNumbers.length) {
+    throw new Error("Some selected bikes are no longer available");
+  }
 
-  const { error: updateErr } = await supabase
+  const { data: updatedBikes, error: updateErr } = await supabase
     .schema("warehouse")
     .from("vehicle_inventory")
     .update({
@@ -80,9 +83,13 @@ async function handleBikeRequest(
       request_reference: referenceNo,
     })
     .eq("status", "AVAILABLE")
-    .in("engine_number", engineNumbers);
+    .in("engine_number", engineNumbers)
+    .select("engine_number");
 
   if (updateErr) throw new Error(updateErr.message);
+  if (!updatedBikes || updatedBikes.length !== engineNumbers.length) {
+    throw new Error("Failed to reserve all selected bikes");
+  }
 
   const requestPayload = (bikes as InventoryBikeRow[]).map((bike, index: number) => ({
     reference_no: createLineReference(referenceNo, index),
@@ -139,8 +146,11 @@ async function handleSpareRequest(
 
   if (fetchErr) throw new Error(fetchErr.message);
   if (!spares?.length) throw new Error("No AVAILABLE spares found");
+  if (spares.length !== serialNumbers.length) {
+    throw new Error("Some selected spares are no longer available");
+  }
 
-  const { error: updateErr } = await supabase
+  const { data: updatedSpares, error: updateErr } = await supabase
     .schema("warehouse")
     .from("vehicle_spare_inventory")
     .update({
@@ -150,9 +160,13 @@ async function handleSpareRequest(
       request_reference: referenceNo,
     })
     .eq("status", "AVAILABLE")
-    .in("serial_number", serialNumbers);
+    .in("serial_number", serialNumbers)
+    .select("serial_number");
 
   if (updateErr) throw new Error(updateErr.message);
+  if (!updatedSpares || updatedSpares.length !== serialNumbers.length) {
+    throw new Error("Failed to reserve all selected spares");
+  }
 
   const requestPayload = (spares as InventorySpareRow[]).map((spare, index: number) => ({
     reference_no: createLineReference(referenceNo, index),

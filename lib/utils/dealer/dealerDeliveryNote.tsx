@@ -67,7 +67,7 @@ const generateDealerDeliveryNotePdf = async (deliveryData: DealerDeliveryData, r
 
   doc.setFont("times", "bold");
   doc.setFontSize(18);
-  doc.text("DEALER DELIVERY NOTE", 105, 25, { align: "center" });
+  doc.text("DELIVERY NOTE", 105, 25, { align: "center" });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");

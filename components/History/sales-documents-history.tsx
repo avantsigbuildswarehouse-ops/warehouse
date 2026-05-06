@@ -57,6 +57,10 @@ function getBuyerId(group: SaleHistoryGroup) {
 
 function getItemDetails(groupItem: SaleHistoryGroup["items"][number]) {
   if (groupItem.type === "Bike") {
+    if (groupItem.identifier === "PRE-ORDER") {
+      return "Advance booking awaiting final vehicle assignment";
+    }
+
     return [
       groupItem.engineNumber ? `ENG: ${groupItem.engineNumber}` : null,
       groupItem.chassisNumber ? `CHS: ${groupItem.chassisNumber}` : null,
@@ -172,11 +176,19 @@ export default function SalesDocumentsHistory({
   title,
   description,
   buyerLabel,
+  groupsLabel,
+  vehiclesLabel,
+  sparesLabel,
+  emptyMessage,
 }: {
   data: SalesHistoryData;
   title: string;
   description: string;
   buyerLabel: string;
+  groupsLabel?: string;
+  vehiclesLabel?: string;
+  sparesLabel?: string;
+  emptyMessage?: string;
 }) {
   const [expandedKeys, setExpandedKeys] = useState<Set<string>>(new Set());
   const [documentsList, setDocumentsList] = useState<Map<string, DocumentInfo[]>>(new Map());
@@ -302,19 +314,19 @@ export default function SalesDocumentsHistory({
       <div className="grid gap-4 md:grid-cols-4">
         <Card className="bg-white/80 dark:bg-slate-900/40">
           <CardHeader>
-            <CardDescription>{buyerLabel} sales</CardDescription>
+            <CardDescription>{groupsLabel || `${buyerLabel} sales`}</CardDescription>
             <CardTitle>{data.groups.length}</CardTitle>
           </CardHeader>
         </Card>
         <Card className="bg-white/80 dark:bg-slate-900/40">
           <CardHeader>
-            <CardDescription>Vehicles sold</CardDescription>
+            <CardDescription>{vehiclesLabel || "Vehicles sold"}</CardDescription>
             <CardTitle>{data.stats.soldVehicles}</CardTitle>
           </CardHeader>
         </Card>
         <Card className="bg-white/80 dark:bg-slate-900/40">
           <CardHeader>
-            <CardDescription>Spares sold</CardDescription>
+            <CardDescription>{sparesLabel || "Spares sold"}</CardDescription>
             <CardTitle>{data.stats.soldSpares}</CardTitle>
           </CardHeader>
         </Card>
@@ -334,7 +346,7 @@ export default function SalesDocumentsHistory({
         <CardContent>
           {data.groups.length === 0 ? (
             <div className="rounded-xl border border-dashed border-slate-200 p-6 text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
-              No completed sales found yet.
+              {emptyMessage || "No completed sales found yet."}
             </div>
           ) : (
             <div className="space-y-3">
@@ -342,6 +354,7 @@ export default function SalesDocumentsHistory({
                 const isExpanded = expandedKeys.has(group.id);
                 const bikeCount = group.items.filter((item) => item.type === "Bike").length;
                 const spareCount = group.items.filter((item) => item.type === "Spare").length;
+                const isAdvanceBooking = group.saleStage === "advance";
 
                 return (
                   <div
@@ -356,6 +369,11 @@ export default function SalesDocumentsHistory({
                         <Badge variant="outline" className="capitalize">
                           {group.buyerType}
                         </Badge>
+                        {isAdvanceBooking ? (
+                          <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300">
+                            Advance Booking
+                          </Badge>
+                        ) : null}
                         <span className="font-semibold text-slate-900 dark:text-white">
                           {getBuyerName(group)}
                         </span>
@@ -395,24 +413,26 @@ export default function SalesDocumentsHistory({
                           <Download className="mr-1 h-3.5 w-3.5" />
                           Get Copies
                         </Button>
-                        <div className="hidden gap-2 md:flex">
-                          <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Quotation")}>
-                            <FileText className="mr-1 h-3.5 w-3.5" />
-                            Quotation
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Invoice")}>
-                            <FileCheck className="mr-1 h-3.5 w-3.5" />
-                            Invoice
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Receipt")}>
-                            <Receipt className="mr-1 h-3.5 w-3.5" />
-                            Receipt
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Delivery Note")}>
-                            <Truck className="mr-1 h-3.5 w-3.5" />
-                            Delivery
-                          </Button>
-                        </div>
+                        {!isAdvanceBooking ? (
+                          <div className="hidden gap-2 md:flex">
+                            <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Quotation")}>
+                              <FileText className="mr-1 h-3.5 w-3.5" />
+                              Quotation
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Invoice")}>
+                              <FileCheck className="mr-1 h-3.5 w-3.5" />
+                              Invoice
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Receipt")}>
+                              <Receipt className="mr-1 h-3.5 w-3.5" />
+                              Receipt
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Delivery Note")}>
+                              <Truck className="mr-1 h-3.5 w-3.5" />
+                              Delivery
+                            </Button>
+                          </div>
+                        ) : null}
                         <div className="text-slate-400 dark:text-slate-500">
                           {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                         </div>
@@ -421,24 +441,26 @@ export default function SalesDocumentsHistory({
 
                     {isExpanded ? (
                       <div className="border-t border-slate-200 dark:border-white/10">
-                        <div className="flex flex-wrap gap-2 border-b border-slate-100 p-4 md:hidden dark:border-white/5">
-                          <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Quotation")}>
-                            <FileText className="mr-1 h-3.5 w-3.5" />
-                            Quotation
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Invoice")}>
-                            <FileCheck className="mr-1 h-3.5 w-3.5" />
-                            Invoice
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Receipt")}>
-                            <Receipt className="mr-1 h-3.5 w-3.5" />
-                            Receipt
-                          </Button>
-                          <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Delivery Note")}>
-                            <Truck className="mr-1 h-3.5 w-3.5" />
-                            Delivery
-                          </Button>
-                        </div>
+                        {!isAdvanceBooking ? (
+                          <div className="flex flex-wrap gap-2 border-b border-slate-100 p-4 md:hidden dark:border-white/5">
+                            <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Quotation")}>
+                              <FileText className="mr-1 h-3.5 w-3.5" />
+                              Quotation
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Invoice")}>
+                              <FileCheck className="mr-1 h-3.5 w-3.5" />
+                              Invoice
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Receipt")}>
+                              <Receipt className="mr-1 h-3.5 w-3.5" />
+                              Receipt
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => generateGroupDoc(group, "Delivery Note")}>
+                              <Truck className="mr-1 h-3.5 w-3.5" />
+                              Delivery
+                            </Button>
+                          </div>
+                        ) : null}
 
                         <div className="grid gap-4 border-b border-slate-100 p-4 md:grid-cols-3 dark:border-white/5">
                           <div>

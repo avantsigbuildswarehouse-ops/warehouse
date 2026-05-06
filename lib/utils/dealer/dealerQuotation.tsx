@@ -66,7 +66,7 @@ const generateDealerQuotationPdf = async (quotationData: DealerQuotationData, re
 
   doc.setFont("times", "bold");
   doc.setFontSize(18);
-  doc.text("DEALER QUOTATION", 105, 25, { align: "center" });
+  doc.text("QUOTATION", 105, 25, { align: "center" });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");

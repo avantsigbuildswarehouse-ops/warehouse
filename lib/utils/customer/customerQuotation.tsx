@@ -75,7 +75,7 @@ const generateCustomerQuotationPdf = async (
 
   doc.setFont("times", "bold");
   doc.setFontSize(18);
-  doc.text(quotationData.document_title || "CUSTOMER QUOTATION", 105, 25, { align: "center" });
+  doc.text(quotationData.document_title || "QUOTATION", 105, 25, { align: "center" });
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
   doc.text(quotationData.document_label || "Quotation No:", 140, 16);
