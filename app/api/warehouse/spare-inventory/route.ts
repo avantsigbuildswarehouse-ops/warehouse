@@ -1,6 +1,7 @@
 // app/api/warehouse/spare-inventory/route.ts
 import { NextResponse } from "next/server";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
+import { syncSpareCodeQuantities } from "@/lib/warehouse/quantity-sync";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 const supabaseAdmin = getSupabaseAdmin();
@@ -22,7 +23,7 @@ export async function GET() {
 
     if (inventoryError) throw inventoryError;
 
-    const rows = inventoryRows ?? [];
+    const rows = (inventoryRows ?? []).filter((row) => row.status !== "ISSUED");
 
     if (rows.length === 0) {
       return NextResponse.json({
@@ -46,7 +47,7 @@ export async function GET() {
     const { data: spareRows, error: spareError } = await supabaseAdmin
       .schema("warehouse")
       .from("vehicle_spare_codes")
-      .select("spare_code, spare_name, warehouse_quantity")
+      .select("spare_code, spare_name, warehouse_quantity, price")
       .in("spare_code", spareCodes);
 
     if (spareError) throw spareError;
@@ -74,12 +75,19 @@ export async function GET() {
       stock_quantity: Number(spareMap.get(row.spare_code)?.quantity ?? 0),
     }));
 
-    const totalValue = items.reduce((sum, item) => sum + item.price, 0);
-    const totalSpareTypes = new Set(items.map((i) => i.spare_code)).size;
+    const totalValue = (spareRows ?? []).reduce(
+      (sum, spare) =>
+        sum + Number(spare.price ?? 0) * Number(spare.warehouse_quantity ?? 0),
+      0
+    );
+    const totalSpareTypes = new Set((spareRows ?? []).map((i) => i.spare_code)).size;
 
     return NextResponse.json({
       summary: {
-        totalUnits: items.length,
+        totalUnits: (spareRows ?? []).reduce(
+          (sum, spare) => sum + Number(spare.warehouse_quantity ?? 0),
+          0
+        ),
         totalSpareTypes,
         totalValue,
       },
@@ -121,7 +129,7 @@ export async function POST(req: Request) {
   const { data: spareMeta, error: spareError } = await supabaseAdmin
     .schema("warehouse")
     .from("vehicle_spare_codes")
-    .select("price, warehouse_quantity, arrived_quantity")
+    .select("price")
     .eq("model_code", body.modelCode)
     .eq("spare_code", body.spareCode)
     .single();
@@ -160,19 +168,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
-  const newQty = Number(spareMeta.arrived_quantity ?? 0) + rows.length;
-  const newQty2 = Number(spareMeta.warehouse_quantity ?? 0) + rows.length;
-
-  const { error: updateError } = await supabaseAdmin
-    .schema("warehouse")
-    .from("vehicle_spare_codes")
-    .update({ arrived_quantity: newQty, warehouse_quantity: newQty2 })
-    .eq("model_code", body.modelCode)
-    .eq("spare_code", body.spareCode);
-
-  if (updateError) {
-    return NextResponse.json({ error: updateError.message }, { status: 500 });
-  }
+  await syncSpareCodeQuantities([
+    { modelCode: body.modelCode, spareCode: body.spareCode },
+  ]);
 
   return NextResponse.json({ success: true, added: rows.length, priceUsed: price });
 }

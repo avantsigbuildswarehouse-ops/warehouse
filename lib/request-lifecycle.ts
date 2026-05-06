@@ -1,4 +1,8 @@
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import {
+  syncSpareCodeQuantities,
+  syncVehicleModelQuantities,
+} from "@/lib/warehouse/quantity-sync";
 
 const supabaseAdmin = getSupabaseAdmin();
 
@@ -57,62 +61,6 @@ const batchRef = (referenceNo: string) => referenceNo.replace(/-\d{2}$/, "");
 const batchLike = (referenceNo: string) => `${batchRef(referenceNo)}-%`;
 
 const computeExpiry = (requestedAt: string) => new Date(new Date(requestedAt).getTime() + THREE_DAYS_MS).toISOString();
-
-async function decrementVehicleWarehouseQuantities(rows: VehicleRequestRow[]) {
-  const countsByModel = new Map<string, number>();
-
-  rows.forEach((row) => {
-    countsByModel.set(row.model_code, (countsByModel.get(row.model_code) || 0) + 1);
-  });
-
-  for (const [modelCode, count] of countsByModel.entries()) {
-    const { data, error } = await supabaseAdmin
-      .schema("warehouse")
-      .from("vehicle_model_codes")
-      .select("warehouse_quantity")
-      .eq("model_code", modelCode)
-      .single();
-
-    if (error) throw new Error(error.message);
-
-    const nextQuantity = Math.max(0, Number(data?.warehouse_quantity || 0) - count);
-    const { error: updateError } = await supabaseAdmin
-      .schema("warehouse")
-      .from("vehicle_model_codes")
-      .update({ warehouse_quantity: nextQuantity })
-      .eq("model_code", modelCode);
-
-    if (updateError) throw new Error(updateError.message);
-  }
-}
-
-async function decrementSpareWarehouseQuantities(rows: SpareRequestRow[]) {
-  const countsBySpare = new Map<string, number>();
-
-  rows.forEach((row) => {
-    countsBySpare.set(row.spare_code, (countsBySpare.get(row.spare_code) || 0) + 1);
-  });
-
-  for (const [spareCode, count] of countsBySpare.entries()) {
-    const { data, error } = await supabaseAdmin
-      .schema("warehouse")
-      .from("vehicle_spare_codes")
-      .select("warehouse_quantity")
-      .eq("spare_code", spareCode)
-      .single();
-
-    if (error) throw new Error(error.message);
-
-    const nextQuantity = Math.max(0, Number(data?.warehouse_quantity || 0) - count);
-    const { error: updateError } = await supabaseAdmin
-      .schema("warehouse")
-      .from("vehicle_spare_codes")
-      .update({ warehouse_quantity: nextQuantity })
-      .eq("spare_code", spareCode);
-
-    if (updateError) throw new Error(updateError.message);
-  }
-}
 
 export async function cleanupExpiredRequests() {
   const now = Date.now();
@@ -368,11 +316,6 @@ export async function issueRequest(referenceNo: string) {
   const insertErrors = [insSv.error, insDv.error, insSs.error, insDs.error].filter(Boolean);
   if (insertErrors.length > 0) throw new Error(insertErrors[0]?.message || "Failed to insert issued inventory");
 
-  await Promise.all([
-    allVehicleRows.length ? decrementVehicleWarehouseQuantities(allVehicleRows) : Promise.resolve(),
-    allSpareRows.length ? decrementSpareWarehouseQuantities(allSpareRows) : Promise.resolve(),
-  ]);
-
   const [upVeh, upSp, upDv, upDs, upSv, upSs] = await Promise.all([
     supabaseAdmin
       .schema("warehouse")
@@ -406,6 +349,20 @@ export async function issueRequest(referenceNo: string) {
 
   const updateErrors = [upVeh.error, upSp.error, upDv.error, upDs.error, upSv.error, upSs.error].filter(Boolean);
   if (updateErrors.length > 0) throw new Error(updateErrors[0]?.message || "Failed to finalize issuing");
+
+  await Promise.all([
+    allVehicleRows.length
+      ? syncVehicleModelQuantities(allVehicleRows.map((row) => row.model_code))
+      : Promise.resolve(),
+    allSpareRows.length
+      ? syncSpareCodeQuantities(
+          allSpareRows.map((row) => ({
+            modelCode: row.model_code,
+            spareCode: row.spare_code,
+          }))
+        )
+      : Promise.resolve(),
+  ]);
 
   return { issuedCount: dv.length + ds.length + sv.length + ss.length };
 }

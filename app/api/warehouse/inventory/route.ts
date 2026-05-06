@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
 import { getVehicleInventoryDetails } from "@/lib/warehouse/admin-data";
+import { syncVehicleModelQuantities } from "@/lib/warehouse/quantity-sync";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 const supabaseAdmin = getSupabaseAdmin();
@@ -54,11 +55,10 @@ export async function POST(req: Request) {
     );
   }
 
-  // get model price
   const { data: model, error: modelError } = await supabaseAdmin
     .schema("warehouse")
     .from("vehicle_model_codes")
-    .select("price, arrived_quantity, warehouse_quantity")
+    .select("price")
     .eq("model_code", model_code)
     .single();
 
@@ -92,22 +92,7 @@ export async function POST(req: Request) {
     );
   }
 
-  // increment quantity
-  const newQty = (model.arrived_quantity || 0) + bikes.length;
-  const newQty2 = (model.warehouse_quantity || 0) + bikes.length;
-
-  const { error: qtyError } = await supabaseAdmin
-    .schema("warehouse")
-    .from("vehicle_model_codes")
-    .update({ arrived_quantity: newQty, warehouse_quantity: newQty2 })
-    .eq("model_code", model_code);
-
-  if (qtyError) {
-    return NextResponse.json(
-      { error: qtyError.message },
-      { status: 500 }
-    );
-  }
+  await syncVehicleModelQuantities([model_code]);
 
   return NextResponse.json({ success: true });
 }

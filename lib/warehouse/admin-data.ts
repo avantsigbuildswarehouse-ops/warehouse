@@ -76,6 +76,7 @@ export async function getVehicleInventoryDetails() {
   const inventory = (data ?? []) as VehicleInventoryRow[];
   const models = await getVehicleModels();
   const modelMap = new Map(models.map((model) => [model.model_code, model]));
+  const activeInventory = inventory.filter((item) => item.status !== "ISSUED");
   const warehouseUnits = models.reduce(
     (sum, model) => sum + toNumber(model.warehouse_quantity),
     0
@@ -85,7 +86,7 @@ export async function getVehicleInventoryDetails() {
     0
   );
 
-  const items = inventory.map((item) => {
+  const items = activeInventory.map((item) => {
     const model = modelMap.get(item.model_code);
     const price = toNumber(item.price ?? model?.price);
 
@@ -100,7 +101,7 @@ export async function getVehicleInventoryDetails() {
   return {
     summary: {
       totalUnits: warehouseUnits,
-      totalModels: new Set(items.map((item) => item.model_code)).size,
+      totalModels: new Set(activeInventory.map((item) => item.model_code)).size,
       totalValue: warehouseValue,
     },
     items,
@@ -150,9 +151,9 @@ export async function getSpareInventoryDetails() {
   const spareMap = new Map(
     spareCodes.map((spare) => [spare.spare_code, spare] as const)
   );
-  const availableInventory = inventory.filter((item) => item.status === "AVAILABLE");
+  const activeInventory = inventory.filter((item) => item.status !== "ISSUED");
 
-  const items = availableInventory.map((item) => {
+  const items = activeInventory.map((item) => {
     const model = modelMap.get(item.model_code);
     const spare = spareMap.get(item.spare_code);
 

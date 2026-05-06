@@ -218,18 +218,19 @@ export default function RequestStockForm({ config }: { config: RequestFormConfig
 
     setIssuing(true);
     try {
-      const cartItem = cart[0];
-      const itemIdentifiers =
-        cartItem.itemType === "Bike"
-          ? (cartItem.items as BikeItem[]).map((item) => item.engine_number)
-          : (cartItem.items as SpareItem[]).map((item) => item.serial_number);
+      const requestItemType = cart[0].itemType;
+      const itemIdentifiers = cart.flatMap((entry) =>
+        requestItemType === "Bike"
+          ? (entry.items as BikeItem[]).map((item) => item.engine_number)
+          : (entry.items as SpareItem[]).map((item) => item.serial_number)
+      );
 
       const res = await fetch(config.submitUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           [`${config.targetCodeLabel}Code`]: config.targetCodeValue,
-          itemType: cartItem.itemType,
+          itemType: requestItemType,
           items: itemIdentifiers,
           remarks: remarks || undefined,
         }),
@@ -245,7 +246,7 @@ export default function RequestStockForm({ config }: { config: RequestFormConfig
         throw new Error(data.error || "Failed to submit request");
       }
 
-      if (cartItem.itemType === "Bike") {
+      if (requestItemType === "Bike") {
         setRequestedEngineNumbers((prev) => {
           const next = new Set(prev);
           itemIdentifiers.forEach((id: string) => next.add(id));

@@ -1,6 +1,10 @@
-//;
 import { NextResponse } from "next/server";
+
 import { requireAdminRoute } from "@/lib/auth/require-admin-route";
+import {
+  syncSpareCodeQuantities,
+  syncVehicleModelQuantities,
+} from "@/lib/warehouse/quantity-sync";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 
 const supabaseAdmin = getSupabaseAdmin();
@@ -31,28 +35,18 @@ export async function POST(req: Request) {
     const { targetType, targetCode, itemType, items } = body;
 
     if (!targetType || !targetCode || !itemType || !Array.isArray(items) || !items.length) {
-      return NextResponse.json(
-        { error: "Missing required fields" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
     const issuedAt = new Date().toISOString();
-
-    const cleanItems = items.map((x: string) => x.trim());
+    const cleanItems = items.map((item: string) => item.trim());
     const isShowroomTarget = targetType === "ASB_Showroom";
     const isDealerTarget = targetType === "Dealer";
 
     if ((!isShowroomTarget && !isDealerTarget) || !["Bike", "Spare"].includes(itemType)) {
-      return NextResponse.json(
-        { error: "Invalid targetType or itemType" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid targetType or itemType" }, { status: 400 });
     }
 
-    // ======================================================
-    // 🚗 BIKE ISSUE FLOW
-    // ======================================================
     if (itemType === "Bike") {
       const { data: fetchBikes, error: fetchErr } = await supabaseAdmin
         .schema("warehouse")
@@ -63,7 +57,6 @@ export async function POST(req: Request) {
         .limit(1000);
 
       if (fetchErr) throw new Error(fetchErr.message);
-
       if (!fetchBikes || fetchBikes.length === 0) {
         throw new Error("No AVAILABLE bikes found (check status or engine numbers)");
       }
@@ -71,13 +64,10 @@ export async function POST(req: Request) {
         throw new Error("Some selected bikes are no longer available");
       }
 
-      const insertTable =
-        isShowroomTarget
-          ? "showroom_vehicle_inventory"
-          : "dealer_vehicle_inventory";
-
-      const assignField =
-        isShowroomTarget ? "showroom_code" : "dealer_code";
+      const insertTable = isShowroomTarget
+        ? "showroom_vehicle_inventory"
+        : "dealer_vehicle_inventory";
+      const assignField = isShowroomTarget ? "showroom_code" : "dealer_code";
 
       const insertPayload = (fetchBikes as WarehouseBikeRow[]).map((bike) => ({
         [assignField]: targetCode,
@@ -98,7 +88,6 @@ export async function POST(req: Request) {
 
       if (insertErr) throw new Error(insertErr.message);
 
-      // 🔥 UPDATE MAIN INVENTORY (IMPORTANT: verify update)
       const { data: updatedBikes, error: updateErr } = await supabaseAdmin
         .schema("warehouse")
         .from("vehicle_inventory")
@@ -109,52 +98,20 @@ export async function POST(req: Request) {
         })
         .eq("status", "AVAILABLE")
         .in("engine_number", cleanItems)
-        .select();
+        .select("model_code, engine_number, chassis_number, color, yom, version, price");
 
       if (updateErr) throw new Error(updateErr.message);
-
       if (!updatedBikes || updatedBikes.length === 0) {
-        throw new Error("No bikes were updated — status mismatch or invalid engine numbers");
+        throw new Error("No bikes were updated due to a status mismatch");
       }
 
-      // 📉 DECREMENT warehouse_quantity for each model
-      const modelGroups = new Map<string, number>();
-      (updatedBikes as WarehouseBikeRow[]).forEach((bike) => {
-        const count = (modelGroups.get(bike.model_code) || 0) + 1;
-        modelGroups.set(bike.model_code, count);
-      });
+      await syncVehicleModelQuantities(
+        (updatedBikes as WarehouseBikeRow[]).map((bike) => bike.model_code)
+      );
 
-      for (const [modelCode, count] of modelGroups.entries()) {
-        const { data: model, error: getErr } = await supabaseAdmin
-          .schema("warehouse")
-          .from("vehicle_model_codes")
-          .select("warehouse_quantity")
-          .eq("model_code", modelCode)
-          .single();
-
-        if (getErr) throw new Error(getErr.message);
-
-        const currentQty = Number(model?.warehouse_quantity || 0);
-        const newQty = Math.max(0, currentQty - count); // Never go below 0
-
-        const { error: qtyErr } = await supabaseAdmin
-          .schema("warehouse")
-          .from("vehicle_model_codes")
-          .update({ warehouse_quantity: newQty })
-          .eq("model_code", modelCode);
-
-        if (qtyErr) throw new Error(qtyErr.message);
-      }
-
-      return NextResponse.json({
-        success: true,
-        count: updatedBikes.length,
-      });
+      return NextResponse.json({ success: true, count: updatedBikes.length });
     }
 
-    // ======================================================
-    // 🧰 SPARE ISSUE FLOW
-    // ======================================================
     if (itemType === "Spare") {
       const { data: fetchSpares, error: fetchErr } = await supabaseAdmin
         .schema("warehouse")
@@ -165,7 +122,6 @@ export async function POST(req: Request) {
         .limit(1000);
 
       if (fetchErr) throw new Error(fetchErr.message);
-
       if (!fetchSpares || fetchSpares.length === 0) {
         throw new Error("No AVAILABLE spares found (check status or serial numbers)");
       }
@@ -173,13 +129,10 @@ export async function POST(req: Request) {
         throw new Error("Some selected spares are no longer available");
       }
 
-      const insertTable =
-        isShowroomTarget
-          ? "showroom_spare_inventory"
-          : "dealer_spare_inventory";
-
-      const assignField =
-        isShowroomTarget ? "showroom_code" : "dealer_code";
+      const insertTable = isShowroomTarget
+        ? "showroom_spare_inventory"
+        : "dealer_spare_inventory";
+      const assignField = isShowroomTarget ? "showroom_code" : "dealer_code";
 
       const insertPayload = (fetchSpares as WarehouseSpareRow[]).map((spare) => ({
         [assignField]: targetCode,
@@ -197,7 +150,6 @@ export async function POST(req: Request) {
 
       if (insertErr) throw new Error(insertErr.message);
 
-      // 🔥 UPDATE MAIN INVENTORY (verified)
       const { data: updatedSpares, error: updateErr } = await supabaseAdmin
         .schema("warehouse")
         .from("vehicle_spare_inventory")
@@ -208,61 +160,27 @@ export async function POST(req: Request) {
         })
         .eq("status", "AVAILABLE")
         .in("serial_number", cleanItems)
-        .select();
+        .select("model_code, spare_code, serial_number, price");
 
       if (updateErr) throw new Error(updateErr.message);
-
       if (!updatedSpares || updatedSpares.length === 0) {
-        throw new Error("No spares were updated — status mismatch or invalid serial numbers");
+        throw new Error("No spares were updated due to a status mismatch");
       }
 
-      // 📉 DECREMENT warehouse_quantity for each spare
-      const spareGroups = new Map<string, number>();
-      (updatedSpares as WarehouseSpareRow[]).forEach((spare) => {
-        const count = (spareGroups.get(spare.spare_code) || 0) + 1;
-        spareGroups.set(spare.spare_code, count);
-      });
+      await syncSpareCodeQuantities(
+        (updatedSpares as WarehouseSpareRow[]).map((spare) => ({
+          modelCode: spare.model_code,
+          spareCode: spare.spare_code,
+        }))
+      );
 
-      for (const [spareCode, count] of spareGroups.entries()) {
-        // Get model_code for this spare (needed for query)
-        const { data: spare, error: getErr } = await supabaseAdmin
-          .schema("warehouse")
-          .from("vehicle_spare_codes")
-          .select("model_code, warehouse_quantity")
-          .eq("spare_code", spareCode)
-          .single();
-
-        if (getErr) throw new Error(getErr.message);
-
-        const currentQty = Number(spare?.warehouse_quantity || 0);
-        const newQty = Math.max(0, currentQty - count); // Never go below 0
-
-        const { error: qtyErr } = await supabaseAdmin
-          .schema("warehouse")
-          .from("vehicle_spare_codes")
-          .update({ warehouse_quantity: newQty })
-          .eq("spare_code", spareCode);
-
-        if (qtyErr) throw new Error(qtyErr.message);
-      }
-
-      return NextResponse.json({
-        success: true,
-        count: updatedSpares.length,
-      });
+      return NextResponse.json({ success: true, count: updatedSpares.length });
     }
 
-    return NextResponse.json(
-      { error: "Invalid itemType" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Invalid itemType" }, { status: 400 });
   } catch (error: unknown) {
     console.error("Issue Stock Error:", error);
     const message = error instanceof Error ? error.message : "Failed to process issue";
-
-    return NextResponse.json(
-      { error: message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
