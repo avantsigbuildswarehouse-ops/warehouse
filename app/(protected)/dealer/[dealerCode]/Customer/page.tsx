@@ -36,12 +36,6 @@ export default async function DealerCustomerPage({
               </p>
             </div>
 
-            <Button asChild variant="outline">
-              <Link href="/dealer">
-                <ArrowLeft className="mr-2 size-4" />
-                Back
-              </Link>
-            </Button>
           </div>
         </div>
 

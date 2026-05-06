@@ -13,6 +13,7 @@ type CustomerInvoiceData = {
   created_at?: string;
   customer_id?: string;
   target_code?: string;
+  target_type?: string;
   customer?: {
     first_name?: string;
     last_name?: string;
@@ -24,6 +25,12 @@ type CustomerInvoiceData = {
   base_price?: number;
   registration_fee?: number;
   discount?: number;
+  advance_payment?: number;
+  balance_due?: number;
+  document_title?: string;
+  document_label?: string;
+  document_number_prefix?: string;
+  sale_stage?: string;
 };
 
 const generateCustomerInvoicePdf = async (
@@ -31,7 +38,8 @@ const generateCustomerInvoicePdf = async (
   returnPdfData: boolean = false
 ) => {
   const doc = new jsPDF("p", "mm", "a4");
-  const documentNumber = `CUSTOMER-INV-${invoiceData.target_code || "SALE"}-${invoiceData.id || Date.now()}`;
+  const documentPrefix = invoiceData.document_number_prefix || "CUSTOMER-INV";
+  const documentNumber = `${documentPrefix}-${invoiceData.target_code || "SALE"}-${invoiceData.id || Date.now()}`;
 
   if (!returnPdfData && invoiceData.customer_id) {
     try {
@@ -69,11 +77,11 @@ const generateCustomerInvoicePdf = async (
 
   doc.setFont("times", "bold");
   doc.setFontSize(18);
-  doc.text("INVOICE", 105, 25, { align: "center" });
+  doc.text(invoiceData.document_title || "INVOICE", 105, 25, { align: "center" });
 
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Invoice No:", 140, 16);
+  doc.text(invoiceData.document_label || "Invoice No:", 140, 16);
   doc.text("Date:", 140, 22);
   doc.text("Due Date:", 140, 28);
 
@@ -166,11 +174,18 @@ const generateCustomerInvoicePdf = async (
   const registrationFee = invoiceData.registration_fee || 0;
   const discount = invoiceData.discount || 0;
   const total = basePrice + registrationFee - discount;
+  const advance = invoiceData.advance_payment || 0;
   const summaryRows = [
     { label: "Base Price", value: basePrice },
     { label: "Registration Fee", value: registrationFee },
     { label: "Discount", value: discount, negative: true },
     { label: "Total Amount", value: total, bold: true },
+    ...(advance > 0
+      ? [
+          { label: "Advance Paid", value: advance, negative: true },
+          { label: "Balance Due", value: invoiceData.balance_due ?? total - advance, bold: true },
+        ]
+      : []),
   ];
 
   for (const row of summaryRows) {
@@ -210,6 +225,7 @@ const generateCustomerInvoicePdf = async (
         document_number: documentNumber,
         generated_at: new Date().toISOString(),
         group_key: invoiceData.id,
+        sale_stage: invoiceData.sale_stage || "completed",
       },
     }).catch((error) => console.error("Error saving document reference:", error));
   }

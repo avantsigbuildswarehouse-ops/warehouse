@@ -314,7 +314,8 @@ export async function getSalesHistoryData({
     itemsBySaleId.set(item.sale_id, current);
   }
 
-  const groups = sales.map((sale) => {
+  const groups = sales
+    .map((sale) => {
     const customer = sale.customer_id ? customerById.get(sale.customer_id) ?? null : null;
     const company = sale.company_id ? companyById.get(sale.company_id) ?? null : null;
 
@@ -354,7 +355,8 @@ export async function getSalesHistoryData({
           }
         : null,
     } satisfies SaleHistoryGroup;
-  });
+    })
+    .filter((group) => group.items.length > 0);
 
   return {
     buyerType,

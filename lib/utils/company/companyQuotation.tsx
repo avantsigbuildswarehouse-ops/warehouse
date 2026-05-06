@@ -13,6 +13,7 @@ type CompanyQuotationData = {
   created_at?: string;
   company_id?: string;
   target_code?: string;
+  target_type?: string;
   company?: {
     company_name?: string;
     company_email?: string;
@@ -25,6 +26,11 @@ type CompanyQuotationData = {
   base_price?: number;
   registration_fee?: number;
   discount?: number;
+  advance_payment?: number;
+  document_title?: string;
+  document_label?: string;
+  document_number_prefix?: string;
+  sale_stage?: string;
 };
 
 const generateCompanyQuotationPdf = async (
@@ -32,7 +38,8 @@ const generateCompanyQuotationPdf = async (
   returnPdfData: boolean = false
 ) => {
   const doc = new jsPDF("p", "mm", "a4");
-  const documentNumber = `COMPANY-QUOT-${quotationData.target_code || "SALE"}-${quotationData.id || Date.now()}`;
+  const documentPrefix = quotationData.document_number_prefix || "COMPANY-QUOT";
+  const documentNumber = `${documentPrefix}-${quotationData.target_code || "SALE"}-${quotationData.id || Date.now()}`;
 
   if (!returnPdfData && quotationData.company_id) {
     try {
@@ -69,10 +76,10 @@ const generateCompanyQuotationPdf = async (
 
   doc.setFont("times", "bold");
   doc.setFontSize(18);
-  doc.text("COMPANY QUOTATION", 105, 25, { align: "center" });
+  doc.text(quotationData.document_title || "COMPANY QUOTATION", 105, 25, { align: "center" });
   doc.setFontSize(9);
   doc.setFont("helvetica", "normal");
-  doc.text("Quotation No:", 140, 16);
+  doc.text(quotationData.document_label || "Quotation No:", 140, 16);
   doc.text("Date:", 140, 22);
   doc.text("Valid Until:", 140, 28);
 
@@ -169,6 +176,9 @@ const generateCompanyQuotationPdf = async (
     { label: "Registration Fee", value: registrationFee },
     { label: "Discount", value: discount, negative: true },
     { label: "Total Estimate", value: totalEstimate, bold: true },
+    ...(quotationData.advance_payment
+      ? [{ label: "Advance Paid", value: quotationData.advance_payment, negative: true }]
+      : []),
   ];
 
   for (const row of summaryRows) {
@@ -208,6 +218,7 @@ const generateCompanyQuotationPdf = async (
         document_number: documentNumber,
         generated_at: new Date().toISOString(),
         group_key: quotationData.id,
+        sale_stage: quotationData.sale_stage || "completed",
       },
     }).catch((error) => console.error("Error saving document reference:", error));
   }

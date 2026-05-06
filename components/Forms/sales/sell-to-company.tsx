@@ -65,7 +65,6 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
 
   // payment fields
   const [basePrice, setBasePrice] = useState<string>("");
-  const [vat, setVat] = useState<string>("");
   const [registrationFee, setRegistrationFee] = useState<string>("");
   const [discount, setDiscount] = useState<string>("");
   const [advancePayment, setAdvancePayment] = useState<string>("");
@@ -153,14 +152,14 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
 
   const filteredVehicles = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let filtered = vehicles;
+    const filtered = vehicles;
     if (!q) return filtered;
     return filtered.filter((v) => `${v.model_code} ${v.engine_number} ${v.chassis_number} ${v.color} ${v.price}`.toLowerCase().includes(q));
   }, [vehicles, query]);
 
   const filteredSpares = useMemo(() => {
     const q = query.trim().toLowerCase();
-    let filtered = spares;
+    const filtered = spares;
     if (!q) return filtered;
     return filtered.filter((s) => `${s.model_code} ${s.spare_code} ${s.serial_number} ${s.price}`.toLowerCase().includes(q));
   }, [spares, query]);
@@ -195,7 +194,6 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
           items,
           payment: {
             base_price: moneyInputToNumber(basePrice),
-            vat: moneyInputToNumber(vat),
             registration_fee: hasBike ? moneyInputToNumber(registrationFee) : 0,
             discount: moneyInputToNumber(discount),
             advance_payment: hasBike ? moneyInputToNumber(advancePayment) : 0,
@@ -211,7 +209,6 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
       setCartSpares(new Set());
       setIsBasePriceManuallyEdited(false);
       setBasePrice("");
-      setVat("");
       setRegistrationFee("");
       setDiscount("");
       setAdvancePayment("");
@@ -477,17 +474,6 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
                     {isBasePriceManuallyEdited && (
                       <p className="text-xs text-amber-600 dark:text-amber-400">Manually edited (auto-update paused)</p>
                     )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label>VAT</Label>
-                    <Input 
-                      value={vat} 
-                      inputMode="decimal" 
-                      placeholder="0.00" 
-                      onChange={(e) => setVat(sanitizeMoneyInput(e.target.value))} 
-                      onBlur={() => setVat(formatMoneyForInput(vat))} 
-                      className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" 
-                    />
                   </div>
                   
                   {/* Only show Registration Fee and Advance Payment if a bike is selected */}
