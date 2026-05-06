@@ -84,7 +84,6 @@ export async function getWarehouseVehicleModels() {
     .schema("warehouse")
     .from("vehicle_model_codes")
     .select("model_code, model_name, price, warehouse_quantity")
-    .gt("warehouse_quantity", 0)
     .order("model_name");
 
   if (error) {
