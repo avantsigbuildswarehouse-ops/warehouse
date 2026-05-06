@@ -244,7 +244,7 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
         });
         await generateQuotation({
           ...customerPayload,
-          document_title: "PRE-ORDER QUOTATION",
+          document_title: "PRE-ORDER QUOTA",
           document_label: "Pre-Order Ref No:",
           document_number_prefix: "PREORDER-QUOT",
         });
@@ -273,7 +273,7 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
         });
         await generateQuotation({
           ...companyPayload,
-          document_title: "PRE-ORDER QUOTATION",
+          document_title: "PRE-ORDER QUOTA",
           document_label: "Pre-Order Ref No:",
           document_number_prefix: "PREORDER-QUOT",
         });
