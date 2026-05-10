@@ -65,30 +65,40 @@ const generateDealerDeliveryNotePdf = async (deliveryData: DealerDeliveryData, r
     doc.text("AVANT", 15, 22);
   }
 
+  // Helper function to format date as DD/MM/YYYY
+  const formatDate = (date: Date) => {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   doc.setFont("times", "bold");
-  doc.setFontSize(18);
-  doc.text("DELIVERY NOTE", 105, 25, { align: "center" });
+  doc.setFontSize(14);
+  doc.text("DELIVERY NOTE", 105, 20, { align: "center" });
 
-  doc.setFontSize(9);
+  // Reference Information - Below Logo
+  let refY = 40;
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text("Delivery No:", 140, 16);
-  doc.text("Date:", 140, 22);
-  doc.text("Reference No:", 140, 28);
+  doc.text("Delivery No:", 15, refY);
+  doc.text("Date:", 15, refY + 6);
+  doc.text("Reference No:", 15, refY + 12);
 
   doc.setFont("helvetica", "bold");
-  doc.text(documentNumber, 165, 16);
-  doc.text(new Date(deliveryData.created_at || Date.now()).toLocaleDateString(), 165, 22);
-  doc.text(deliveryData.reference_no?.toString() || "-", 165, 28);
+  doc.setFontSize(7);
+  const docNumLines = doc.splitTextToSize(documentNumber, 90);
+  doc.text(docNumLines, 55, refY);
+  
+  doc.setFontSize(8);
+  doc.text(formatDate(new Date(deliveryData.created_at || Date.now())), 55, refY + 6);
+  doc.text(deliveryData.reference_no?.toString() || "-", 55, refY + 12);
 
-  doc.setFont("helvetica", "normal");
-  doc.text("Print Date:", 15, 35);
-  doc.setFont("helvetica", "bold");
-  doc.text(new Date().toLocaleDateString(), 40, 35);
-
-  doc.line(15, 38, 195, 38);
+  doc.line(15, refY + 18, 195, refY + 18);
 
   // Dealer Details
-  let y = 50;
+  let y = 62;
 
   doc.setFillColor(230, 230, 230);
   doc.rect(15, y, 180, 10, "F");

@@ -90,11 +90,7 @@ const generateCompanyInvoicePdf = async (
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + 30);
   doc.text(dueDate.toLocaleDateString(), 165, 28);
-  doc.setFont("helvetica", "normal");
-  doc.text("Print Date:", 15, 35);
-  doc.setFont("helvetica", "bold");
-  doc.text(new Date().toLocaleDateString(), 40, 35);
-  doc.line(15, 38, 195, 38);
+  
 
   let y = 50;
   doc.setFillColor(230, 230, 230);

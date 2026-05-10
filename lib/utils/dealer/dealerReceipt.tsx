@@ -70,30 +70,40 @@ const generateDealerReceiptPdf = async (receiptData: DealerReceiptData, returnPd
     doc.text("AVANT", 15, 22);
   }
 
+  // Helper function to format date as DD/MM/YYYY
+  const formatDate = (date: Date) => {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
+
   doc.setFont("times", "bold");
-  doc.setFontSize(18);
-  doc.text("PAYMENT RECEIPT", 105, 25, { align: "center" });
+  doc.setFontSize(14);
+  doc.text("PAYMENT RECEIPT", 105, 20, { align: "center" });
 
-  doc.setFontSize(9);
+  // Reference Information - Below Logo
+  let refY = 40;
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text("Receipt No:", 140, 16);
-  doc.text("Date:", 140, 22);
-  doc.text("Dealer Code:", 140, 28);
+  doc.text("Receipt No:", 15, refY);
+  doc.text("Date:", 15, refY + 6);
+  doc.text("Dealer Code:", 15, refY + 12);
 
   doc.setFont("helvetica", "bold");
-  doc.text(documentNumber, 165, 16);
-  doc.text(new Date(receiptData.created_at || Date.now()).toLocaleDateString(), 165, 22);
-  doc.text(receiptData.dealer_code || "-", 165, 28);
+  doc.setFontSize(7);
+  const docNumLines = doc.splitTextToSize(documentNumber, 90);
+  doc.text(docNumLines, 55, refY);
+  
+  doc.setFontSize(8);
+  doc.text(formatDate(new Date(receiptData.created_at || Date.now())), 55, refY + 6);
+  doc.text(receiptData.dealer_code || "-", 55, refY + 12);
 
-  doc.setFont("helvetica", "normal");
-  doc.text("Print Date:", 15, 35);
-  doc.setFont("helvetica", "bold");
-  doc.text(new Date().toLocaleDateString(), 40, 35);
-
-  doc.line(15, 38, 195, 38);
+  doc.line(15, refY + 18, 195, refY + 18);
 
   // Receipt Information
-  let y = 50;
+  let y = 62;
 
   doc.setFillColor(230, 230, 230);
   doc.rect(15, y, 180, 10, "F");

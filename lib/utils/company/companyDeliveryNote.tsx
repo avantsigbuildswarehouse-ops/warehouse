@@ -76,11 +76,6 @@ const generateCompanyDeliveryNotePdf = async (
   doc.text(documentNumber, 165, 16);
   doc.text(new Date(deliveryData.created_at || Date.now()).toLocaleDateString(), 165, 22);
   doc.text(deliveryData.reference_no || "-", 165, 28);
-  doc.setFont("helvetica", "normal");
-  doc.text("Print Date:", 15, 35);
-  doc.setFont("helvetica", "bold");
-  doc.text(new Date().toLocaleDateString(), 40, 35);
-  doc.line(15, 38, 195, 38);
 
   let y = 50;
   doc.setFillColor(230, 230, 230);

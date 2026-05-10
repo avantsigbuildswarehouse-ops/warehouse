@@ -75,30 +75,41 @@ const generateCustomerInvoicePdf = async (
     doc.text("AVANT", 15, 22);
   }
 
-  doc.setFont("times", "bold");
-  doc.setFontSize(18);
-  doc.text(invoiceData.document_title || "INVOICE", 105, 25, { align: "center" });
+  // Helper function to format date as DD/MM/YYYY
+  const formatDate = (date: Date) => {
+    const d = new Date(date);
+    const day = String(d.getDate()).padStart(2, '0');
+    const month = String(d.getMonth() + 1).padStart(2, '0');
+    const year = d.getFullYear();
+    return `${day}/${month}/${year}`;
+  };
 
-  doc.setFontSize(9);
+  doc.setFont("times", "bold");
+  doc.setFontSize(14);
+  doc.text(invoiceData.document_title || "INVOICE", 105, 20, { align: "center" });
+
+  // Reference Information - Below Logo
+  let refY = 40;
+  doc.setFontSize(8);
   doc.setFont("helvetica", "normal");
-  doc.text(invoiceData.document_label || "Invoice No:", 140, 16);
-  doc.text("Date:", 140, 22);
-  doc.text("Due Date:", 140, 28);
+  doc.text(invoiceData.document_label || "Invoice No:", 15, refY);
+  doc.text("Date:", 15, refY + 6);
+  doc.text("Due Date:", 15, refY + 12);
 
   doc.setFont("helvetica", "bold");
-  doc.text(documentNumber, 165, 16);
-  doc.text(new Date(invoiceData.created_at || Date.now()).toLocaleDateString(), 165, 22);
+  doc.setFontSize(7);
+  const docNumLines = doc.splitTextToSize(documentNumber, 90);
+  doc.text(docNumLines, 55, refY);
+  
+  doc.setFontSize(8);
+  doc.text(formatDate(new Date(invoiceData.created_at || Date.now())), 55, refY + 6);
   const dueDate = new Date();
   dueDate.setDate(dueDate.getDate() + 30);
-  doc.text(dueDate.toLocaleDateString(), 165, 28);
+  doc.text(formatDate(dueDate), 55, refY + 12);
 
-  doc.setFont("helvetica", "normal");
-  doc.text("Print Date:", 15, 35);
-  doc.setFont("helvetica", "bold");
-  doc.text(new Date().toLocaleDateString(), 40, 35);
-  doc.line(15, 38, 195, 38);
+  doc.line(15, refY + 18, 195, refY + 18);
 
-  let y = 50;
+  let y = 62;
   doc.setFillColor(230, 230, 230);
   doc.rect(15, y, 180, 10, "F");
   doc.setFontSize(11);
