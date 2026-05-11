@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       targetType,
       targetCode,
       saleId: body.saleId,
-      vehicleId: body.vehicleId,
+      vehicleIds: body.vehicleIds,
       payment: body.payment,
     });
 

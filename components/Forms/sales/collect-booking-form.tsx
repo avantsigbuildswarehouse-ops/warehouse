@@ -24,6 +24,13 @@ type AvailableVehicle = {
   price: number;
 };
 
+type RequestedVehicleItem = {
+  model_code: string;
+  model_name: string;
+  price: number;
+  quantity: number;
+};
+
 type BookingResponse = {
   sale: {
     id: string;
@@ -41,6 +48,7 @@ type BookingResponse = {
     model_name: string;
     price: number;
   };
+  requestedItems: RequestedVehicleItem[];
   buyer: Record<string, unknown>;
   alreadyCollected: boolean;
   availableVehicles: AvailableVehicle[];
@@ -59,18 +67,49 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [booking, setBooking] = useState<BookingResponse | null>(null);
-  const [selectedVehicleId, setSelectedVehicleId] = useState<string>("");
+  const [selectedVehicleIds, setSelectedVehicleIds] = useState<string[]>([]);
   const [basePrice, setBasePrice] = useState("");
   const [registrationFee, setRegistrationFee] = useState("");
   const [discount, setDiscount] = useState("");
   const [advancePayment, setAdvancePayment] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Advance payment");
 
-  const selectedVehicle = booking?.availableVehicles.find((vehicle) => vehicle.id === selectedVehicleId) || null;
+  const requestedItems = booking?.requestedItems?.length
+    ? booking.requestedItems
+    : booking?.requestedModel
+      ? [{ ...booking.requestedModel, quantity: 1 }]
+      : [];
+
+  const availableVehiclesByModel = useMemo(() => {
+    const groups = new Map<string, AvailableVehicle[]>();
+
+    for (const vehicle of booking?.availableVehicles || []) {
+      const current = groups.get(vehicle.model_code) || [];
+      current.push(vehicle);
+      groups.set(vehicle.model_code, current);
+    }
+
+    return groups;
+  }, [booking]);
+
+  const selectedVehicles = useMemo(() => {
+    const selectedSet = new Set(selectedVehicleIds);
+    return (booking?.availableVehicles || []).filter((vehicle) => selectedSet.has(vehicle.id));
+  }, [booking, selectedVehicleIds]);
+
+  const selectedCountsByModel = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const vehicle of selectedVehicles) {
+      counts.set(vehicle.model_code, (counts.get(vehicle.model_code) || 0) + 1);
+    }
+    return counts;
+  }, [selectedVehicles]);
+
+  const expectedVehicleCount = requestedItems.reduce((sum, item) => sum + item.quantity, 0);
 
   useEffect(() => {
     if (!booking) return;
-    setBasePrice(formatMoneyForInput(String(booking.sale.base_price || booking.requestedModel.price || 0)));
+    setBasePrice(formatMoneyForInput(String(booking.sale.base_price || 0)));
     setRegistrationFee(formatMoneyForInput(String(booking.sale.registration_fee || 0)));
     setDiscount(formatMoneyForInput(String(booking.sale.discount || 0)));
     setAdvancePayment(formatMoneyForInput(String(booking.sale.advance_payment || 0)));
@@ -78,10 +117,10 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
   }, [booking]);
 
   useEffect(() => {
-    if (selectedVehicle) {
-      setBasePrice(formatMoneyForInput(String(selectedVehicle.price)));
-    }
-  }, [selectedVehicle]);
+    if (selectedVehicles.length === 0) return;
+    const total = selectedVehicles.reduce((sum, vehicle) => sum + vehicle.price, 0);
+    setBasePrice(formatMoneyForInput(String(total)));
+  }, [selectedVehicles]);
 
   const summary = useMemo(() => {
     const base = moneyInputToNumber(basePrice);
@@ -93,7 +132,23 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
       total,
       balance: total - adv,
     };
-  }, [basePrice, registrationFee, discount, advancePayment]);
+  }, [advancePayment, basePrice, discount, registrationFee]);
+
+  function toggleVehicleSelection(vehicle: AvailableVehicle, requiredQuantity: number) {
+    setSelectedVehicleIds((current) => {
+      const exists = current.includes(vehicle.id);
+      if (exists) {
+        return current.filter((id) => id !== vehicle.id);
+      }
+
+      const selectedForModel = selectedCountsByModel.get(vehicle.model_code) || 0;
+      if (selectedForModel >= requiredQuantity) {
+        return current;
+      }
+
+      return [...current, vehicle.id];
+    });
+  }
 
   async function searchBooking() {
     if (documentSuffix.trim().length < 3) return;
@@ -101,7 +156,7 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
     setErrorMessage(null);
     setSuccess(null);
     setBooking(null);
-    setSelectedVehicleId("");
+    setSelectedVehicleIds([]);
 
     try {
       const endpoint = buyerType === "customer" ? "/api/sales/customer-advance" : "/api/sales/company-advance";
@@ -119,7 +174,7 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
   }
 
   async function handleCollect() {
-    if (!booking || !selectedVehicleId) return;
+    if (!booking || selectedVehicleIds.length !== expectedVehicleCount) return;
 
     setSubmitting(true);
     setErrorMessage(null);
@@ -134,7 +189,7 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
           targetType,
           targetCode,
           saleId: booking.sale.id,
-          vehicleId: selectedVehicleId,
+          vehicleIds: selectedVehicleIds,
           payment: {
             base_price: moneyInputToNumber(basePrice),
             registration_fee: moneyInputToNumber(registrationFee),
@@ -150,7 +205,7 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
 
       setSuccess(data.result.sale.id);
       setBooking(null);
-      setSelectedVehicleId("");
+      setSelectedVehicleIds([]);
       setDocumentSuffix("");
       setBasePrice("");
       setRegistrationFee("");
@@ -170,7 +225,7 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-emerald-800 dark:text-emerald-300">
               <CheckCircle2 className="h-5 w-5" />
-              Vehicle assigned successfully
+              Vehicles assigned successfully
             </CardTitle>
             <CardDescription className="text-emerald-700 dark:text-emerald-300">
               Final sale completed under sale ID: {success}
@@ -192,7 +247,7 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
         <CardHeader>
           <CardTitle>Came To Collect</CardTitle>
           <CardDescription>
-            Search by the last digits of the performer invoice document number, then assign a real vehicle from the current {targetType} inventory.
+            Search by the last digits of the performer invoice document number, then assign the exact set of real vehicles from the current {targetType} inventory.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -219,9 +274,9 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
                   ) : null}
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Requested Model</p>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{booking.requestedModel.model_name}</p>
-                  <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{booking.requestedModel.model_code}</p>
+                  <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Requested vehicles</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white">{requestedItems.length} model(s)</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">{expectedVehicleCount} vehicle(s) total</p>
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">Advance Saved</p>
@@ -231,53 +286,78 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <p className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
-                  <Truck className="h-4 w-4" />
-                  Available {targetType === "dealer" ? "Dealer" : "Showroom"} Inventory
-                </p>
-                <div className="max-h-[40vh] space-y-2 overflow-y-auto rounded-2xl border border-slate-200 p-2 dark:border-white/10">
-                  {booking.availableVehicles.length === 0 ? (
-                    <p className="p-3 text-sm text-slate-500 dark:text-slate-400">
-                      No available vehicles for the requested model in this {targetType}.
-                    </p>
-                  ) : (
-                    booking.availableVehicles.map((vehicle) => {
-                      const selected = selectedVehicleId === vehicle.id;
-                      return (
-                        <button
-                          key={vehicle.id}
-                          type="button"
-                          onClick={() => setSelectedVehicleId(vehicle.id)}
-                          className={`w-full rounded-xl border p-3 text-left transition-colors ${
-                            selected
-                              ? "border-sky-300 bg-sky-50 dark:border-sky-500/30 dark:bg-sky-500/10"
-                              : "border-slate-200 hover:bg-slate-50 dark:border-white/10 dark:hover:bg-white/[0.03]"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div>
-                              <p className="text-sm font-semibold text-slate-900 dark:text-white">{vehicle.model_code}</p>
-                              <p className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                                ENG: {vehicle.engine_number}
-                              </p>
-                              <p className="text-xs font-mono text-slate-500 dark:text-slate-400">
-                                CHS: {vehicle.chassis_number}
-                              </p>
-                            </div>
-                            <Badge variant="outline">{selected ? "Selected" : "Select"}</Badge>
-                          </div>
-                          <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
-                            {vehicle.color || "-"} {vehicle.version ? `• ${vehicle.version}` : ""} {vehicle.yom ? `• ${vehicle.yom}` : ""}
+              <div className="space-y-3">
+                {requestedItems.map((item) => {
+                  const availableVehicles = availableVehiclesByModel.get(item.model_code) || [];
+                  const selectedCount = selectedCountsByModel.get(item.model_code) || 0;
+
+                  return (
+                    <div key={item.model_code} className="space-y-2">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+                          <Truck className="h-4 w-4" />
+                          {item.model_name}
+                        </p>
+                        <Badge variant="outline">
+                          Select {item.quantity} | Selected {selectedCount}
+                        </Badge>
+                      </div>
+
+                      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-slate-800/30">
+                        <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{item.model_code}</p>
+                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                          Requested quantity: {item.quantity} | Available now: {availableVehicles.length}
+                        </p>
+                      </div>
+
+                      <div className="max-h-[32vh] space-y-2 overflow-y-auto rounded-2xl border border-slate-200 p-2 dark:border-white/10">
+                        {availableVehicles.length === 0 ? (
+                          <p className="p-3 text-sm text-slate-500 dark:text-slate-400">
+                            No available vehicles for {item.model_code} in this {targetType}.
                           </p>
-                          <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                            Price: Rs{vehicle.price.toLocaleString()}
-                          </p>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
+                        ) : (
+                          availableVehicles.map((vehicle) => {
+                            const selected = selectedVehicleIds.includes(vehicle.id);
+                            const selectionLocked = !selected && selectedCount >= item.quantity;
+
+                            return (
+                              <button
+                                key={vehicle.id}
+                                type="button"
+                                onClick={() => toggleVehicleSelection(vehicle, item.quantity)}
+                                disabled={selectionLocked}
+                                className={`w-full rounded-xl border p-3 text-left transition-colors ${
+                                  selected
+                                    ? "border-sky-300 bg-sky-50 dark:border-sky-500/30 dark:bg-sky-500/10"
+                                    : "border-slate-200 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:hover:bg-white/[0.03]"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <div>
+                                    <p className="text-sm font-semibold text-slate-900 dark:text-white">{vehicle.model_code}</p>
+                                    <p className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                                      ENG: {vehicle.engine_number}
+                                    </p>
+                                    <p className="text-xs font-mono text-slate-500 dark:text-slate-400">
+                                      CHS: {vehicle.chassis_number}
+                                    </p>
+                                  </div>
+                                  <Badge variant="outline">{selected ? "Selected" : "Select"}</Badge>
+                                </div>
+                                <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
+                                  {vehicle.color || "-"} {vehicle.version ? `• ${vehicle.version}` : ""} {vehicle.yom ? `• ${vehicle.yom}` : ""}
+                                </p>
+                                <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                                  Price: Rs{vehicle.price.toLocaleString()}
+                                </p>
+                              </button>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
@@ -307,12 +387,15 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
                 <p className="font-semibold text-slate-900 dark:text-white">Final Summary</p>
                 <p className="mt-1 text-slate-600 dark:text-slate-300">Total: Rs{summary.total.toLocaleString()}</p>
                 <p className="text-slate-600 dark:text-slate-300">Balance after advance: Rs{summary.balance.toLocaleString()}</p>
+                <p className="text-slate-600 dark:text-slate-300">
+                  Selected vehicles: {selectedVehicleIds.length} / {expectedVehicleCount}
+                </p>
               </div>
 
               <Button
                 className="w-full"
                 onClick={handleCollect}
-                disabled={submitting || booking.alreadyCollected || !selectedVehicleId}
+                disabled={submitting || booking.alreadyCollected || selectedVehicleIds.length !== expectedVehicleCount}
               >
                 {submitting ? (
                   <>
@@ -320,7 +403,7 @@ export default function CollectBookingForm({ buyerType }: { buyerType: BuyerType
                     Completing sale...
                   </>
                 ) : (
-                  "Assign Vehicle And Complete Sale"
+                  "Assign Vehicles And Complete Sale"
                 )}
               </Button>
             </div>

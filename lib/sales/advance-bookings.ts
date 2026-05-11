@@ -30,6 +30,13 @@ type PaymentPayload = {
   payment_method: string;
 };
 
+type RequestedVehicleItem = {
+  model_code: string;
+  model_name: string;
+  price: number;
+  quantity: number;
+};
+
 type VehicleInventoryRow = {
   id: string;
   model_code: string;
@@ -45,6 +52,7 @@ type VehicleInventoryRow = {
 type SalesOrderRow = {
   id: string;
   created_at: string;
+  buyer_type: BuyerType;
   customer_id: string | null;
   company_id: string | null;
   target_type: TargetType;
@@ -102,7 +110,7 @@ export async function createAdvanceBooking({
   buyerType,
   targetType,
   targetCode,
-  requestedModel,
+  requestedItems,
   payment,
   customer,
   company,
@@ -110,11 +118,28 @@ export async function createAdvanceBooking({
   buyerType: BuyerType;
   targetType: TargetType;
   targetCode: string;
-  requestedModel: { model_code: string; model_name: string; price: number };
+  requestedItems: RequestedVehicleItem[];
   payment: PaymentPayload;
   customer?: CustomerPayload;
   company?: CompanyPayload;
 }) {
+  if (!Array.isArray(requestedItems) || requestedItems.length === 0) {
+    throw new Error("Select at least one requested vehicle model");
+  }
+
+  const sanitizedRequestedItems = requestedItems
+    .map((item) => ({
+      model_code: item.model_code,
+      model_name: item.model_name,
+      price: toNumber(item.price),
+      quantity: Math.max(1, Math.trunc(Number(item.quantity) || 0)),
+    }))
+    .filter((item) => item.model_code && item.model_name && item.quantity > 0);
+
+  if (sanitizedRequestedItems.length === 0) {
+    throw new Error("Requested vehicle list is invalid");
+  }
+
   let customerId: string | null = null;
   let companyId: string | null = null;
   let buyerData: CustomerPayload | CompanyPayload | null = null;
@@ -156,7 +181,11 @@ export async function createAdvanceBooking({
     buyerData = company;
   }
 
-  const base = toNumber(payment.base_price || requestedModel.price);
+  const quotedBase = sanitizedRequestedItems.reduce(
+    (sum, item) => sum + item.price * item.quantity,
+    0
+  );
+  const base = toNumber(payment.base_price || quotedBase);
   const reg = toNumber(payment.registration_fee);
   const disc = toNumber(payment.discount);
   const adv = toNumber(payment.advance_payment);
@@ -187,9 +216,88 @@ export async function createAdvanceBooking({
   return {
     sale,
     buyerId: buyerType === "customer" ? customerId : companyId,
-    requestedModel,
+    requestedItems: sanitizedRequestedItems,
     buyerData,
   };
+}
+
+function parseRequestedItemsFromDocument(documentData: Record<string, unknown>) {
+  const rawRequestedItems = Array.isArray(documentData.requested_items)
+    ? documentData.requested_items
+    : [];
+
+  const parsedRequestedItems = rawRequestedItems
+    .map((item) => {
+      const row = item as Record<string, unknown>;
+      return {
+        model_code: String(row.model_code || ""),
+        model_name: String(row.model_name || row.model_code || ""),
+        price: toNumber(row.price as number | string | null | undefined),
+        quantity: Math.max(1, Math.trunc(toNumber(row.quantity as number | string | null | undefined) || 1)),
+      };
+    })
+    .filter((item) => item.model_code);
+
+  if (parsedRequestedItems.length > 0) {
+    return parsedRequestedItems;
+  }
+
+  const requestedModelCode = String(documentData.requested_model_code || "");
+  if (!requestedModelCode) {
+    return [];
+  }
+
+  return [
+    {
+      model_code: requestedModelCode,
+      model_name: String(documentData.requested_model_name || requestedModelCode),
+      price: toNumber(documentData.requested_price as number | string | null | undefined),
+      quantity: 1,
+    },
+  ];
+}
+
+async function findAdvanceDocumentForSale({
+  buyerType,
+  sale,
+}: {
+  buyerType: BuyerType;
+  sale: SalesOrderRow;
+}) {
+  const tableName = buyerType === "customer" ? "customer_documents" : "company_documents";
+  const buyerField = buyerType === "customer" ? "customer_id" : "company_id";
+  const buyerId = buyerType === "customer" ? sale.customer_id : sale.company_id;
+
+  if (!buyerId) {
+    throw new Error("Advance booking buyer reference is missing");
+  }
+
+  const { data: docs, error } = await supabaseAdmin
+    .from(tableName)
+    .select("document_number, document_data, generated_at")
+    .eq(buyerField, buyerId)
+    .eq("document_type", "invoice")
+    .order("generated_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  const matchedDoc = (docs ?? []).find((doc) => {
+    const documentData = (doc.document_data || {}) as Record<string, unknown>;
+    return (
+      String(documentData.group_key || "") === sale.id &&
+      String(documentData.sale_stage || "") === "advance" &&
+      String(documentData.target_type || "") === sale.target_type &&
+      String(documentData.target_code || "") === sale.target_code
+    );
+  });
+
+  if (!matchedDoc) {
+    throw new Error("Advance booking document could not be found");
+  }
+
+  return matchedDoc.document_data as Record<string, unknown>;
 }
 
 export async function findAdvanceBooking({
@@ -255,16 +363,22 @@ export async function findAdvanceBooking({
   }
 
   const requestedModelCode = String(documentData.requested_model_code || "");
-  const requestedModelName = String(documentData.requested_model_name || requestedModelCode);
-  const requestedPrice = toNumber(documentData.requested_price as number | string | null | undefined);
+  const requestedItems = parseRequestedItemsFromDocument(documentData);
+  const primaryRequestedItem = requestedItems[0] || {
+    model_code: requestedModelCode,
+    model_name: String(documentData.requested_model_name || requestedModelCode),
+    price: toNumber(documentData.requested_price as number | string | null | undefined),
+    quantity: 1,
+  };
 
   const { schema, vehicleTable, codeField } = getInventoryTable(targetType);
+  const requestedModelCodes = Array.from(new Set(requestedItems.map((item) => item.model_code)));
   const { data: vehicles, error: vehiclesError } = await supabaseAdmin
     .schema(schema)
     .from(vehicleTable)
     .select("id, model_code, engine_number, chassis_number, color, yom, version, price, sold_at")
     .eq(codeField, targetCode)
-    .eq("model_code", requestedModelCode)
+    .in("model_code", requestedModelCodes.length ? requestedModelCodes : [primaryRequestedItem.model_code])
     .is("sold_at", null)
     .order("issued_at", { ascending: false });
 
@@ -279,10 +393,11 @@ export async function findAdvanceBooking({
     targetType,
     targetCode,
     requestedModel: {
-      model_code: requestedModelCode,
-      model_name: requestedModelName,
-      price: requestedPrice,
+      model_code: primaryRequestedItem.model_code,
+      model_name: primaryRequestedItem.model_name,
+      price: primaryRequestedItem.price,
     },
+    requestedItems,
     buyer:
       buyerType === "customer"
         ? (documentData.customer as Record<string, unknown>)
@@ -306,14 +421,14 @@ export async function finalizeAdvanceBooking({
   targetType,
   targetCode,
   saleId,
-  vehicleId,
+  vehicleIds,
   payment,
 }: {
   buyerType: BuyerType;
   targetType: TargetType;
   targetCode: string;
   saleId: string;
-  vehicleId: string;
+  vehicleIds: string[];
   payment: PaymentPayload;
 }) {
   const { data: sale, error: saleError } = await supabaseAdmin
@@ -338,19 +453,62 @@ export async function finalizeAdvanceBooking({
     throw new Error("This advance booking has already been collected");
   }
 
+  const requestedDocumentData = await findAdvanceDocumentForSale({
+    buyerType,
+    sale: sale as SalesOrderRow,
+  });
+  const requestedItems = parseRequestedItemsFromDocument(requestedDocumentData);
+  if (requestedItems.length === 0) {
+    throw new Error("Advance booking requested vehicles are missing");
+  }
+
+  const normalizedVehicleIds = Array.from(
+    new Set(
+      (vehicleIds || [])
+        .map((vehicleId) => String(vehicleId || "").trim())
+        .filter(Boolean)
+    )
+  );
+  const expectedVehicleCount = requestedItems.reduce((sum, item) => sum + item.quantity, 0);
+
+  if (normalizedVehicleIds.length !== expectedVehicleCount) {
+    throw new Error(`Select exactly ${expectedVehicleCount} vehicle(s) for this booking`);
+  }
+
   const { schema, vehicleTable, codeField } = getInventoryTable(targetType);
-  const { data: vehicle, error: vehicleError } = await supabaseAdmin
+  const requestedModelCodes = Array.from(new Set(requestedItems.map((item) => item.model_code)));
+  const { data: vehicles, error: vehicleError } = await supabaseAdmin
     .schema(schema)
     .from(vehicleTable)
     .select("id, model_code, engine_number, chassis_number, color, yom, version, price")
     .eq(codeField, targetCode)
-    .eq("id", vehicleId)
+    .in("id", normalizedVehicleIds)
+    .in("model_code", requestedModelCodes)
     .is("sold_at", null)
-    .single();
+    .order("issued_at", { ascending: false });
 
   if (vehicleError) throw new Error(vehicleError.message);
+  if ((vehicles ?? []).length !== normalizedVehicleIds.length) {
+    throw new Error("Some selected vehicles are no longer available");
+  }
 
-  const base = toNumber(payment.base_price || vehicle.price);
+  const actualCounts = new Map<string, number>();
+  for (const vehicle of vehicles ?? []) {
+    actualCounts.set(vehicle.model_code, (actualCounts.get(vehicle.model_code) || 0) + 1);
+  }
+  for (const requestedItem of requestedItems) {
+    if ((actualCounts.get(requestedItem.model_code) || 0) !== requestedItem.quantity) {
+      throw new Error(
+        `Select ${requestedItem.quantity} vehicle(s) for model ${requestedItem.model_code}`
+      );
+    }
+  }
+
+  const calculatedBase = (vehicles ?? []).reduce(
+    (sum, vehicle) => sum + toNumber(vehicle.price),
+    0
+  );
+  const base = toNumber(payment.base_price || calculatedBase);
   const reg = toNumber(payment.registration_fee);
   const disc = toNumber(payment.discount);
   const adv = toNumber(payment.advance_payment);
@@ -374,11 +532,13 @@ export async function finalizeAdvanceBooking({
 
   if (updateSaleError) throw new Error(updateSaleError.message);
 
-  const { error: insertItemError } = await supabaseAdmin.from("sales_order_items").insert({
-    sale_id: saleId,
-    item_type: "Bike",
-    inventory_id: vehicleId,
-  });
+  const { error: insertItemError } = await supabaseAdmin.from("sales_order_items").insert(
+    normalizedVehicleIds.map((vehicleId) => ({
+      sale_id: saleId,
+      item_type: "Bike",
+      inventory_id: vehicleId,
+    }))
+  );
 
   if (insertItemError) throw new Error(insertItemError.message);
 
@@ -403,14 +563,14 @@ export async function finalizeAdvanceBooking({
     .from(vehicleTable)
     .update(inventoryUpdatePayload)
     .eq(codeField, targetCode)
-    .eq("id", vehicleId)
+    .in("id", normalizedVehicleIds)
     .is("sold_at", null);
 
   if (inventoryUpdateError) throw new Error(inventoryUpdateError.message);
 
   return {
     sale: updatedSale as SalesOrderRow,
-    vehicle: {
+    vehicles: ((vehicles ?? []) as VehicleInventoryRow[]).map((vehicle) => ({
       id: vehicle.id,
       model_code: vehicle.model_code,
       engine_number: vehicle.engine_number,
@@ -419,6 +579,6 @@ export async function finalizeAdvanceBooking({
       yom: vehicle.yom,
       version: vehicle.version,
       price: toNumber(vehicle.price),
-    },
+    })),
   };
 }

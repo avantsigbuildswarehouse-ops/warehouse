@@ -19,6 +19,7 @@ import {
   ChartNoAxesCombined,
   ClipboardList,
   Receipt,
+  FileText,
 } from "lucide-react";
 
 import LogoutButton from "./logout-button";
@@ -63,6 +64,7 @@ function getNavItems(role: string, code: string): NavItem[] {
       { href: `/dealer/${code}/Customer`, label: "Customer Invoice", icon: Users },
       { href: `/dealer/${code}/Company`, label: "Company Invoice", icon: Building},
       { href: `/dealer/${code}/Billing`, label: "Billing", icon: Receipt},
+      { href: `/dealer/${code}/Quotations`, label: "Quotations", icon: FileText},
       { href: `/dealer/${code}/Analytics`, label: "Analytics", icon: ChartNoAxesCombined}
     ];
   }
@@ -75,6 +77,7 @@ function getNavItems(role: string, code: string): NavItem[] {
       { href: `/showroom/${code}/Customer`, label: "Customer Invoice", icon: Users },
       { href: `/showroom/${code}/Company`, label: "Company Invoice", icon: Building},
       { href: `/showroom/${code}/Billing`, label: "Billing", icon: Receipt},
+      { href: `/showroom/${code}/Quotations`, label: "Quotations", icon: FileText},
       { href: `/showroom/${code}/Analytics`, label: "Analytics", icon: ChartNoAxesCombined}
     ];
   }

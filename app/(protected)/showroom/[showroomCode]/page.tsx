@@ -3,6 +3,7 @@ import Link from "next/link";
 import {
   Bike,
   CircleDollarSign,
+  FileText,
   PackageOpen,
   Wrench,
 } from "lucide-react";
@@ -195,7 +196,7 @@ export default async function ShowroomStockPage({
           </div>
         </div>
 
-        <div className="grid gap-5 md:grid-cols-2">
+        <div className="grid gap-5 md:grid-cols-3">
           <Card className="border-sky-200/60 bg-white/85 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
             <CardHeader className="space-y-3">
               <CardTitle className="text-xl text-slate-900 dark:text-white">Customer Billing History</CardTitle>
@@ -220,6 +221,23 @@ export default async function ShowroomStockPage({
             <CardContent>
               <Button asChild className="rounded-xl">
                 <Link href={`/showroom/${showroomCode}/Company`}>Open Company Records</Link>
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card className="border-sky-200/60 bg-white/85 shadow-sm dark:border-white/10 dark:bg-slate-900/40">
+            <CardHeader className="space-y-3">
+              <CardTitle className="flex items-center gap-2 text-xl text-slate-900 dark:text-white">
+                <FileText className="h-5 w-5" />
+                Quotations
+              </CardTitle>
+              <CardDescription className="text-slate-600 dark:text-slate-400">
+                Generate quotations and performer invoices for requested vehicles and spares without saving buyer details.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button asChild className="rounded-xl">
+                <Link href={`/showroom/${showroomCode}/Quotations`}>Open Quotations</Link>
               </Button>
             </CardContent>
           </Card>

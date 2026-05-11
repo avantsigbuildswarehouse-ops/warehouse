@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
-import { CheckCircle2, Package, ShoppingCart, Truck, Wrench } from "lucide-react";
 import QRCode from "qrcode";
+import { CheckCircle2, Package, ShoppingCart, Truck, Wrench } from "lucide-react";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -49,13 +50,12 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
   const [vehicles, setVehicles] = useState<VehicleRow[]>([]);
   const [spares, setSpares] = useState<SpareRow[]>([]);
   const [query, setQuery] = useState("");
-  const [selectedBikeId, setSelectedBikeId] = useState<string | null>(null);
+  const [selectedBikeIds, setSelectedBikeIds] = useState<Set<string>>(new Set());
   const [cartSpares, setCartSpares] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // company fields
   const [companyName, setCompanyName] = useState("");
   const [companyEmail, setCompanyEmail] = useState("");
   const [companyContact, setCompanyContact] = useState("");
@@ -63,15 +63,12 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
   const [brNo, setBrNo] = useState("");
   const [vatNo, setVatNo] = useState("");
 
-  // payment fields
   const [basePrice, setBasePrice] = useState<string>("");
   const [registrationFee, setRegistrationFee] = useState<string>("");
   const [discount, setDiscount] = useState<string>("");
   const [advancePayment, setAdvancePayment] = useState<string>("");
   const [paymentMethod, setPaymentMethod] = useState<string>("Bank transfer");
   const [warrantyQr, setWarrantyQr] = useState<Array<{ id: string; label: string; url: string }>>([]);
-  
-  // Add a flag to track if base price was manually edited
   const [isBasePriceManuallyEdited, setIsBasePriceManuallyEdited] = useState(false);
 
   useEffect(() => {
@@ -79,9 +76,10 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
       setLoading(true);
       setSuccess(null);
       setErrorMessage(null);
-      const res = await fetch(`/api/sales/inventory?targetType=${targetType}&targetCode=${encodeURIComponent(targetCode)}`);
-      const data = await res.json();
-      if (res.ok) {
+
+      const response = await fetch(`/api/sales/inventory?targetType=${targetType}&targetCode=${encodeURIComponent(targetCode)}`);
+      const data = await response.json();
+      if (response.ok) {
         setVehicles(data.vehicles || []);
         setSpares(data.spares || []);
       } else {
@@ -91,93 +89,96 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
       }
       setLoading(false);
     };
+
     if (targetCode) void load();
   }, [targetCode, targetType]);
 
-  // Calculate total price of selected items
-  const calculateTotalPrice = () => {
+  const totalSelectedPrice = useMemo(() => {
     let total = 0;
-    
-    // Add selected bike price
-    if (selectedBikeId) {
-      const bike = vehicles.find(v => v.id === selectedBikeId);
-      if (bike && bike.price) {
-        total += bike.price;
-      }
-    }
-    
-    // Sum selected spare prices
-    cartSpares.forEach(spareId => {
-      const spare = spares.find(s => s.id === spareId);
-      if (spare && spare.price) {
-        total += spare.price;
-      }
-    });
-    
-    return total;
-  };
 
-  // Auto-update base price when cart changes (only if not manually edited)
+    selectedBikeIds.forEach((bikeId) => {
+      const bike = vehicles.find((vehicle) => vehicle.id === bikeId);
+      if (bike?.price) total += bike.price;
+    });
+
+    cartSpares.forEach((spareId) => {
+      const spare = spares.find((row) => row.id === spareId);
+      if (spare?.price) total += spare.price;
+    });
+
+    return total;
+  }, [cartSpares, selectedBikeIds, spares, vehicles]);
+
   useEffect(() => {
     if (!isBasePriceManuallyEdited) {
-      const total = calculateTotalPrice();
-      setBasePrice(formatMoneyForInput(total.toString()));
+      setBasePrice(formatMoneyForInput(totalSelectedPrice.toString()));
     }
-  }, [selectedBikeId, cartSpares, vehicles, spares, isBasePriceManuallyEdited]);
+  }, [isBasePriceManuallyEdited, totalSelectedPrice]);
 
-  // Reset manual edit flag when cart becomes empty
   useEffect(() => {
-    if (!selectedBikeId && cartSpares.size === 0) {
+    if (selectedBikeIds.size === 0 && cartSpares.size === 0) {
       setIsBasePriceManuallyEdited(false);
     }
-  }, [selectedBikeId, cartSpares]);
+  }, [cartSpares, selectedBikeIds]);
 
-  // Reset registration fee and advance payment when bike is deselected
   useEffect(() => {
-    if (!selectedBikeId) {
+    if (selectedBikeIds.size === 0) {
       setRegistrationFee("");
       setAdvancePayment("");
     }
-  }, [selectedBikeId]);
-
-  const handleBikeSelection = (bikeId: string) => {
-    if (selectedBikeId === bikeId) {
-      // Deselect if already selected
-      setSelectedBikeId(null);
-    } else {
-      // Select new bike (replaces any existing selection)
-      setSelectedBikeId(bikeId);
-    }
-  };
+  }, [selectedBikeIds]);
 
   const filteredVehicles = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = vehicles;
-    if (!q) return filtered;
-    return filtered.filter((v) => `${v.model_code} ${v.engine_number} ${v.chassis_number} ${v.color} ${v.price}`.toLowerCase().includes(q));
-  }, [vehicles, query]);
+    if (!q) return vehicles;
+    return vehicles.filter((vehicle) =>
+      `${vehicle.model_code} ${vehicle.engine_number} ${vehicle.chassis_number} ${vehicle.color} ${vehicle.price}`.toLowerCase().includes(q)
+    );
+  }, [query, vehicles]);
 
   const filteredSpares = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = spares;
-    if (!q) return filtered;
-    return filtered.filter((s) => `${s.model_code} ${s.spare_code} ${s.serial_number} ${s.price}`.toLowerCase().includes(q));
-  }, [spares, query]);
+    if (!q) return spares;
+    return spares.filter((spare) =>
+      `${spare.model_code} ${spare.spare_code} ${spare.serial_number} ${spare.price}`.toLowerCase().includes(q)
+    );
+  }, [query, spares]);
 
-  const cartCount = (selectedBikeId ? 1 : 0) + cartSpares.size;
-  const hasBike = selectedBikeId !== null;
+  const cartCount = selectedBikeIds.size + cartSpares.size;
+  const hasBike = selectedBikeIds.size > 0;
 
-  const handleSubmit = async () => {
+  function toggleBikeSelection(bikeId: string) {
+    setSelectedBikeIds((current) => {
+      const next = new Set(current);
+      if (next.has(bikeId)) next.delete(bikeId);
+      else next.add(bikeId);
+      return next;
+    });
+  }
+
+  function toggleSpareSelection(spareId: string) {
+    setCartSpares((current) => {
+      const next = new Set(current);
+      if (next.has(spareId)) next.delete(spareId);
+      else next.add(spareId);
+      return next;
+    });
+  }
+
+  async function handleSubmit() {
     if (!companyName || !companyEmail || cartCount === 0) return;
+
     setSubmitting(true);
     setSuccess(null);
     setErrorMessage(null);
+
     try {
       const items = [
-        ...(selectedBikeId ? [{ type: "Bike" as const, id: selectedBikeId }] : []),
+        ...Array.from(selectedBikeIds).map((id) => ({ type: "Bike" as const, id })),
         ...Array.from(cartSpares).map((id) => ({ type: "Spare" as const, id })),
       ];
-      const res = await fetch("/api/sales/company", {
+
+      const response = await fetch("/api/sales/company", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -201,11 +202,12 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
           },
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Failed to submit sale");
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Failed to submit sale");
 
       setSuccess(data.saleId);
-      setSelectedBikeId(null);
+      setSelectedBikeIds(new Set());
       setCartSpares(new Set());
       setIsBasePriceManuallyEdited(false);
       setBasePrice("");
@@ -218,7 +220,7 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
       setAddress("");
       setBrNo("");
       setVatNo("");
-      
+
       const qrRows = ((data.bikeWarrantyQr || []) as Array<{ inventoryId: string; engine_number: string | null; chassis_number: string | null; warranty_url: string }>);
       const qrCodes = await Promise.all(
         qrRows.map(async (row) => ({
@@ -228,19 +230,17 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
         }))
       );
       setWarrantyQr(qrCodes);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Failed";
-      setErrorMessage(message);
+    } catch (error: unknown) {
+      setErrorMessage(error instanceof Error ? error.message : "Failed");
     } finally {
       setSubmitting(false);
     }
-  };
+  }
 
-  // Handle manual base price change
-  const handleBasePriceChange = (value: string) => {
+  function handleBasePriceChange(value: string) {
     setIsBasePriceManuallyEdited(true);
     setBasePrice(sanitizeMoneyInput(value));
-  };
+  }
 
   if (loading) {
     return <div className="p-6 text-sm text-slate-600 dark:text-slate-300">Loading available inventory...</div>;
@@ -274,13 +274,13 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
           <CardHeader>
             <CardTitle className="dark:text-white">Available inventory</CardTitle>
             <CardDescription className="dark:text-slate-400">
-              {filterCategory === "bikes" ? "Showing Vehicles (max 1 per sale)" : "Showing Spare Parts (multiple allowed)"} - Search and add items to cart.
+              {filterCategory === "bikes" ? "Showing Vehicles (multiple allowed)" : "Showing Spare Parts (multiple allowed)"} - Search and add items to cart.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Input
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(event) => setQuery(event.target.value)}
               placeholder="Search model, engine, chassis, serial..."
               className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
             />
@@ -288,20 +288,20 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
             <div className="space-y-2">
               {filterCategory === "bikes" ? (
                 <>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
-                    <Truck className="h-4 w-4" /> Vehicles (Maximum 1 per sale)
+                  <p className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
+                    <Truck className="h-4 w-4" /> Vehicles (Multiple allowed)
                   </p>
                   <div className="max-h-[52vh] overflow-y-auto rounded-2xl border border-slate-200 p-2 dark:border-white/10">
                     {filteredVehicles.length === 0 ? (
                       <p className="p-3 text-sm text-slate-500 dark:text-slate-400">No vehicles available.</p>
                     ) : (
-                      filteredVehicles.map((v) => {
-                        const selected = selectedBikeId === v.id;
+                      filteredVehicles.map((vehicle) => {
+                        const selected = selectedBikeIds.has(vehicle.id);
                         return (
                           <button
-                            key={v.id}
+                            key={vehicle.id}
                             type="button"
-                            onClick={() => handleBikeSelection(v.id)}
+                            onClick={() => toggleBikeSelection(vehicle.id)}
                             className={`w-full rounded-xl border p-3 text-left transition-colors ${
                               selected
                                 ? "border-sky-300 bg-sky-50 dark:border-sky-500/30 dark:bg-sky-500/10"
@@ -309,13 +309,13 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <p className="text-sm font-semibold text-slate-900 dark:text-white">{v.model_code}</p>
+                              <p className="text-sm font-semibold text-slate-900 dark:text-white">{vehicle.model_code}</p>
                               <Badge variant="outline">{selected ? "Selected" : "Tap to select"}</Badge>
                             </div>
-                            <p className="mt-1 text-xs font-mono text-slate-600 dark:text-slate-300">ENG: {v.engine_number}</p>
-                            <p className="text-xs font-mono text-slate-600 dark:text-slate-300">CHS: {v.chassis_number}</p>
-                            <p className="text-xs text-slate-600 dark:text-slate-300">Color: {v.color || "-"}</p>
-                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Price: Rs{v.price?.toLocaleString() || "0"}</p>
+                            <p className="mt-1 text-xs font-mono text-slate-600 dark:text-slate-300">ENG: {vehicle.engine_number}</p>
+                            <p className="text-xs font-mono text-slate-600 dark:text-slate-300">CHS: {vehicle.chassis_number}</p>
+                            <p className="text-xs text-slate-600 dark:text-slate-300">Color: {vehicle.color || "-"}</p>
+                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Price: Rs{vehicle.price?.toLocaleString() || "0"}</p>
                           </button>
                         );
                       })
@@ -324,27 +324,20 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
                 </>
               ) : (
                 <>
-                  <p className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
                     <Wrench className="h-4 w-4" /> Spares (Multiple allowed)
                   </p>
                   <div className="max-h-[52vh] overflow-y-auto rounded-2xl border border-slate-200 p-2 dark:border-white/10">
                     {filteredSpares.length === 0 ? (
                       <p className="p-3 text-sm text-slate-500 dark:text-slate-400">No spares available.</p>
                     ) : (
-                      filteredSpares.map((s) => {
-                        const selected = cartSpares.has(s.id);
+                      filteredSpares.map((spare) => {
+                        const selected = cartSpares.has(spare.id);
                         return (
                           <button
-                            key={s.id}
+                            key={spare.id}
                             type="button"
-                            onClick={() => {
-                              setCartSpares((prev) => {
-                                const next = new Set(prev);
-                                if (next.has(s.id)) next.delete(s.id);
-                                else next.add(s.id);
-                                return next;
-                              });
-                            }}
+                            onClick={() => toggleSpareSelection(spare.id)}
                             className={`w-full rounded-xl border p-3 text-left transition-colors ${
                               selected
                                 ? "border-violet-300 bg-violet-50 dark:border-violet-500/30 dark:bg-violet-500/10"
@@ -352,12 +345,12 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
                             }`}
                           >
                             <div className="flex items-center justify-between gap-2">
-                              <p className="text-sm font-semibold text-slate-900 dark:text-white">{s.spare_code}</p>
+                              <p className="text-sm font-semibold text-slate-900 dark:text-white">{spare.spare_code}</p>
                               <Badge variant="outline">{selected ? "Selected" : "Tap to select"}</Badge>
                             </div>
-                            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{s.model_code}</p>
-                            <p className="text-xs font-mono text-slate-600 dark:text-slate-300">SER: {s.serial_number}</p>
-                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Price: Rs{s.price?.toLocaleString() || "0"}</p>
+                            <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">{spare.model_code}</p>
+                            <p className="text-xs font-mono text-slate-600 dark:text-slate-300">SER: {spare.serial_number}</p>
+                            <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">Price: Rs{spare.price?.toLocaleString() || "0"}</p>
                           </button>
                         );
                       })
@@ -385,39 +378,33 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
                   <div className="mt-2 text-xs text-slate-600 dark:text-slate-400">
                     <p>Selected items:</p>
                     <ul className="list-inside list-disc">
-                      {selectedBikeId && (() => {
-                        const bike = vehicles.find(v => v.id === selectedBikeId);
-                        return bike && (
-                          <li key={selectedBikeId}>
-                            🚗 {bike.model_code} - Rs{bike.price?.toLocaleString()}
+                      {Array.from(selectedBikeIds).map((bikeId) => {
+                        const bike = vehicles.find((vehicle) => vehicle.id === bikeId);
+                        return bike ? (
+                          <li key={bikeId}>
+                            Vehicle {bike.model_code} - Rs{bike.price?.toLocaleString()}
                             <button
-                              onClick={() => setSelectedBikeId(null)}
+                              onClick={() => toggleBikeSelection(bikeId)}
                               className="ml-2 text-red-500 hover:text-red-700"
                             >
                               Remove
                             </button>
                           </li>
-                        );
-                      })()}
-                      {Array.from(cartSpares).map(spareId => {
-                        const spare = spares.find(s => s.id === spareId);
-                        return spare && (
+                        ) : null;
+                      })}
+                      {Array.from(cartSpares).map((spareId) => {
+                        const spare = spares.find((row) => row.id === spareId);
+                        return spare ? (
                           <li key={spareId}>
-                            🔧 {spare.spare_code} - Rs{spare.price?.toLocaleString()}
+                            Spare {spare.spare_code} - Rs{spare.price?.toLocaleString()}
                             <button
-                              onClick={() => {
-                                setCartSpares(prev => {
-                                  const next = new Set(prev);
-                                  next.delete(spareId);
-                                  return next;
-                                });
-                              }}
+                              onClick={() => toggleSpareSelection(spareId)}
                               className="ml-2 text-red-500 hover:text-red-700"
                             >
                               Remove
                             </button>
                           </li>
-                        );
+                        ) : null;
                       })}
                     </ul>
                   </div>
@@ -427,46 +414,46 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
               <div className="grid gap-4">
                 <div className="space-y-2">
                   <Label>Company name</Label>
-                  <Input value={companyName} onChange={(e) => setCompanyName(e.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                  <Input value={companyName} onChange={(event) => setCompanyName(event.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
                 </div>
                 <div className="space-y-2">
                   <Label>Company email</Label>
-                  <Input value={companyEmail} onChange={(e) => setCompanyEmail(e.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                  <Input value={companyEmail} onChange={(event) => setCompanyEmail(event.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
                 </div>
                 <div className="space-y-2">
                   <Label>Company contact (optional)</Label>
-                  <Input value={companyContact} onChange={(e) => setCompanyContact(e.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                  <Input value={companyContact} onChange={(event) => setCompanyContact(event.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
                 </div>
                 <div className="space-y-2">
                   <Label>Address (optional)</Label>
-                  <Input value={address} onChange={(e) => setAddress(e.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                  <Input value={address} onChange={(event) => setAddress(event.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
                 </div>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>BR No (optional)</Label>
-                    <Input value={brNo} onChange={(e) => setBrNo(e.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                    <Input value={brNo} onChange={(event) => setBrNo(event.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
                   </div>
                   <div className="space-y-2">
                     <Label>VAT No (optional)</Label>
-                    <Input value={vatNo} onChange={(e) => setVatNo(e.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
+                    <Input value={vatNo} onChange={(event) => setVatNo(event.target.value)} className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" />
                   </div>
                 </div>
               </div>
 
               <div className="border-t border-slate-200 pt-4 dark:border-white/10">
-                <p className="mb-2 text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <p className="mb-2 flex items-center gap-2 text-sm font-semibold text-slate-900 dark:text-white">
                   <Package className="h-4 w-4" /> Payment (manual)
                 </p>
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label>Base price</Label>
-                    <Input 
-                      value={basePrice} 
-                      inputMode="decimal" 
-                      placeholder="0.00" 
-                      onChange={(e) => handleBasePriceChange(e.target.value)} 
-                      onBlur={() => setBasePrice(formatMoneyForInput(basePrice))} 
-                      className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" 
+                    <Input
+                      value={basePrice}
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      onChange={(event) => handleBasePriceChange(event.target.value)}
+                      onBlur={() => setBasePrice(formatMoneyForInput(basePrice))}
+                      className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
                     />
                     {!isBasePriceManuallyEdited && cartCount > 0 && (
                       <p className="text-xs text-slate-500 dark:text-slate-400">Auto-calculated from selected items</p>
@@ -475,57 +462,55 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
                       <p className="text-xs text-amber-600 dark:text-amber-400">Manually edited (auto-update paused)</p>
                     )}
                   </div>
-                  
-                  {/* Only show Registration Fee and Advance Payment if a bike is selected */}
+
                   {hasBike && (
                     <>
                       <div className="space-y-2">
                         <Label>Registration fee</Label>
-                        <Input 
-                          value={registrationFee} 
-                          inputMode="decimal" 
-                          placeholder="0.00" 
-                          onChange={(e) => setRegistrationFee(sanitizeMoneyInput(e.target.value))} 
-                          onBlur={() => setRegistrationFee(formatMoneyForInput(registrationFee))} 
-                          className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" 
+                        <Input
+                          value={registrationFee}
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          onChange={(event) => setRegistrationFee(sanitizeMoneyInput(event.target.value))}
+                          onBlur={() => setRegistrationFee(formatMoneyForInput(registrationFee))}
+                          className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
                         />
                       </div>
                       <div className="space-y-2">
                         <Label>Advance</Label>
-                        <Input 
-                          value={advancePayment} 
-                          inputMode="decimal" 
-                          placeholder="0.00" 
-                          onChange={(e) => setAdvancePayment(sanitizeMoneyInput(e.target.value))} 
-                          onBlur={() => setAdvancePayment(formatMoneyForInput(advancePayment))} 
-                          className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" 
+                        <Input
+                          value={advancePayment}
+                          inputMode="decimal"
+                          placeholder="0.00"
+                          onChange={(event) => setAdvancePayment(sanitizeMoneyInput(event.target.value))}
+                          onBlur={() => setAdvancePayment(formatMoneyForInput(advancePayment))}
+                          className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
                         />
                       </div>
                     </>
                   )}
-                  
+
                   <div className="space-y-2">
                     <Label>Discount</Label>
-                    <Input 
-                      value={discount} 
-                      inputMode="decimal" 
-                      placeholder="0.00" 
-                      onChange={(e) => setDiscount(sanitizeMoneyInput(e.target.value))} 
-                      onBlur={() => setDiscount(formatMoneyForInput(discount))} 
-                      className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" 
+                    <Input
+                      value={discount}
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      onChange={(event) => setDiscount(sanitizeMoneyInput(event.target.value))}
+                      onBlur={() => setDiscount(formatMoneyForInput(discount))}
+                      className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>Method</Label>
-                    <Input 
-                      value={paymentMethod} 
-                      onChange={(e) => setPaymentMethod(e.target.value)} 
-                      className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white" 
+                    <Input
+                      value={paymentMethod}
+                      onChange={(event) => setPaymentMethod(event.target.value)}
+                      className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
                     />
                   </div>
                 </div>
-                
-                {/* Show message when only spares are selected */}
+
                 {cartSpares.size > 0 && !hasBike && (
                   <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
                     Note: Registration fee and advance payment are only applicable for vehicle purchases.

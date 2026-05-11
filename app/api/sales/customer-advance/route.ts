@@ -61,7 +61,7 @@ export async function POST(req: Request) {
       buyerType: "customer",
       targetType,
       targetCode,
-      requestedModel: body.requestedModel,
+      requestedItems: body.requestedItems,
       payment: body.payment,
       customer: body.customer,
     });

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
-import { Building2, CheckCircle2, FileText, Loader2, User } from "lucide-react";
+import { Building2, CheckCircle2, FileText, Loader2, Trash2, User } from "lucide-react";
 
 import { formatMoneyForInput, moneyInputToNumber, sanitizeMoneyInput } from "@/components/Forms/sales/sales-utils";
 import { Badge } from "@/components/ui/badge";
@@ -31,6 +31,11 @@ type LocalVehicle = {
   price: number;
 };
 
+type RequestedVehicleLine = {
+  model_code: string;
+  quantity: number;
+};
+
 export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType }) {
   const params = useParams();
   const dealerCode = (params.dealerCode as string | undefined) || "";
@@ -39,18 +44,14 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
   const targetCode = dealerCode || showroomCode;
 
   const [models, setModels] = useState<WarehouseModel[]>([]);
+  const [localVehicles, setLocalVehicles] = useState<LocalVehicle[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [selectedModelCode, setSelectedModelCode] = useState<string>("");
-  const [checkingAvailability, setCheckingAvailability] = useState(false);
-  const [localAvailability, setLocalAvailability] = useState<{
-    available: boolean;
-    count: number;
-    vehicles: LocalVehicle[];
-  } | null>(null);
+  const [requestedVehicles, setRequestedVehicles] = useState<RequestedVehicleLine[]>([]);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -66,6 +67,7 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
   const [vatNo, setVatNo] = useState("");
 
   const [basePrice, setBasePrice] = useState("");
+  const [registrationFee, setRegistrationFee] = useState("");
   const [discount, setDiscount] = useState("");
   const [advancePayment, setAdvancePayment] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Advance payment");
@@ -74,18 +76,36 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
     const load = async () => {
       setLoading(true);
       setErrorMessage(null);
-      const response = await fetch("/api/sales/warehouse-models");
-      const data = await response.json();
-      if (response.ok) {
-        setModels(data.models || []);
-      } else {
-        setErrorMessage(data.error || "Failed to load warehouse models");
+
+      try {
+        const [modelsResponse, inventoryResponse] = await Promise.all([
+          fetch("/api/sales/warehouse-models"),
+          fetch(`/api/sales/inventory?targetType=${targetType}&targetCode=${encodeURIComponent(targetCode)}`),
+        ]);
+
+        const [modelsData, inventoryData] = await Promise.all([
+          modelsResponse.json(),
+          inventoryResponse.json(),
+        ]);
+
+        if (!modelsResponse.ok) {
+          throw new Error(modelsData.error || "Failed to load warehouse models");
+        }
+        if (!inventoryResponse.ok) {
+          throw new Error(inventoryData.error || "Failed to load local inventory");
+        }
+
+        setModels(modelsData.models || []);
+        setLocalVehicles(inventoryData.vehicles || []);
+      } catch (error: unknown) {
+        setErrorMessage(error instanceof Error ? error.message : "Failed to load advance-booking data");
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
     void load();
-  }, []);
+  }, [targetCode, targetType]);
 
   const filteredModels = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -97,54 +117,110 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
 
   const selectedModel = models.find((model) => model.model_code === selectedModelCode) || null;
 
-  useEffect(() => {
-    if (selectedModel) {
-      setBasePrice(formatMoneyForInput(String(selectedModel.price)));
+  const localAvailabilityByModel = useMemo(() => {
+    const availability = new Map<
+      string,
+      { count: number; colors: string[]; vehicles: LocalVehicle[] }
+    >();
+
+    for (const vehicle of localVehicles) {
+      const current = availability.get(vehicle.model_code) || {
+        count: 0,
+        colors: [],
+        vehicles: [],
+      };
+      current.count += 1;
+      current.vehicles.push(vehicle);
+      if (vehicle.color && !current.colors.includes(vehicle.color)) {
+        current.colors.push(vehicle.color);
+      }
+      availability.set(vehicle.model_code, current);
     }
-  }, [selectedModel]);
+
+    return availability;
+  }, [localVehicles]);
+
+  const requestedVehicleDetails = useMemo(
+    () =>
+      requestedVehicles
+        .map((item) => {
+          const model = models.find((entry) => entry.model_code === item.model_code);
+          if (!model) return null;
+          const availability = localAvailabilityByModel.get(item.model_code);
+          return {
+            ...item,
+            model_name: model.model_name,
+            price: model.price,
+            availableCount: availability?.count || 0,
+            availableColors: availability?.colors || [],
+          };
+        })
+        .filter(Boolean) as Array<
+        RequestedVehicleLine & {
+          model_name: string;
+          price: number;
+          availableCount: number;
+          availableColors: string[];
+        }
+      >,
+    [localAvailabilityByModel, models, requestedVehicles]
+  );
+
+  const requestedItemsTotal = useMemo(
+    () =>
+      requestedVehicleDetails.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      ),
+    [requestedVehicleDetails]
+  );
 
   useEffect(() => {
-    const loadAvailability = async () => {
-      if (!selectedModelCode) {
-        setLocalAvailability(null);
-        return;
-      }
+    setBasePrice(formatMoneyForInput(String(requestedItemsTotal)));
+  }, [requestedItemsTotal]);
 
-      setCheckingAvailability(true);
-      try {
-        const response = await fetch(
-          `/api/sales/model-availability?targetType=${targetType}&targetCode=${encodeURIComponent(targetCode)}&modelCode=${encodeURIComponent(selectedModelCode)}`
+  const selectedModelAvailability = selectedModel
+    ? localAvailabilityByModel.get(selectedModel.model_code) || {
+        count: 0,
+        colors: [],
+        vehicles: [],
+      }
+    : null;
+
+  function addSelectedModel() {
+    if (!selectedModel) return;
+
+    setRequestedVehicles((current) => {
+      const existing = current.find((item) => item.model_code === selectedModel.model_code);
+      if (existing) {
+        return current.map((item) =>
+          item.model_code === selectedModel.model_code
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
         );
-        const data = await response.json();
-        if (response.ok) {
-          setLocalAvailability({
-            available: Boolean(data.available),
-            count: Number(data.count || 0),
-            vehicles: data.vehicles || [],
-          });
-        } else {
-          setLocalAvailability({
-            available: false,
-            count: 0,
-            vehicles: [],
-          });
-        }
-      } catch {
-        setLocalAvailability({
-          available: false,
-          count: 0,
-          vehicles: [],
-        });
-      } finally {
-        setCheckingAvailability(false);
       }
-    };
 
-    void loadAvailability();
-  }, [selectedModelCode, targetCode, targetType]);
+      return [...current, { model_code: selectedModel.model_code, quantity: 1 }];
+    });
+  }
+
+  function updateRequestedQuantity(modelCode: string, nextQuantity: string) {
+    const quantity = Math.max(1, Math.trunc(Number(nextQuantity) || 1));
+    setRequestedVehicles((current) =>
+      current.map((item) =>
+        item.model_code === modelCode ? { ...item, quantity } : item
+      )
+    );
+  }
+
+  function removeRequestedModel(modelCode: string) {
+    setRequestedVehicles((current) =>
+      current.filter((item) => item.model_code !== modelCode)
+    );
+  }
 
   async function handleSubmit() {
-    if (!selectedModel) return;
+    if (requestedVehicleDetails.length === 0) return;
     if (buyerType === "customer" && (!firstName || !lastName || !phone)) return;
     if (buyerType === "company" && (!companyName || !companyEmail)) return;
 
@@ -154,13 +230,20 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
 
     try {
       const endpoint = buyerType === "customer" ? "/api/sales/customer-advance" : "/api/sales/company-advance";
+      const requestedItems = requestedVehicleDetails.map((item) => ({
+        model_code: item.model_code,
+        model_name: item.model_name,
+        price: item.price,
+        quantity: item.quantity,
+      }));
+
       const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           targetType,
           targetCode,
-          requestedModel: selectedModel,
+          requestedItems,
           customer:
             buyerType === "customer"
               ? {
@@ -184,7 +267,7 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
               : undefined,
           payment: {
             base_price: moneyInputToNumber(basePrice),
-            registration_fee: 0,
+            registration_fee: moneyInputToNumber(registrationFee),
             discount: moneyInputToNumber(discount),
             advance_payment: moneyInputToNumber(advancePayment),
             payment_method: paymentMethod,
@@ -202,22 +285,21 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
         target_type: targetType,
         target_code: targetCode,
         base_price: moneyInputToNumber(basePrice),
-        registration_fee: 0,
+        registration_fee: moneyInputToNumber(registrationFee),
         discount: moneyInputToNumber(discount),
         advance_payment: moneyInputToNumber(advancePayment),
         balance_due: Number(booking.sale.balance_due || 0),
         sale_stage: "advance",
-        requested_model_code: selectedModel.model_code,
-        requested_model_name: selectedModel.model_name,
-        requested_price: selectedModel.price,
-        items: [
-          {
-            type: "Bike" as const,
-            model_code: selectedModel.model_code,
-            identifier: "PRE-ORDER",
-            price: selectedModel.price,
-          },
-        ],
+        requested_items: requestedItems,
+        requested_model_code: requestedItems[0]?.model_code || "",
+        requested_model_name: requestedItems[0]?.model_name || "",
+        requested_price: requestedItems[0]?.price || 0,
+        items: requestedItems.map((item) => ({
+          type: "Bike" as const,
+          model_code: item.model_code,
+          identifier: `PRE-ORDER x${item.quantity}`,
+          price: item.price * item.quantity,
+        })),
       };
 
       if (buyerType === "customer") {
@@ -281,10 +363,13 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
 
       setSuccess(booking.sale.id);
       setSelectedModelCode("");
+      setRequestedVehicles([]);
       setQuery("");
       setBasePrice("");
+      setRegistrationFee("");
       setDiscount("");
       setAdvancePayment("");
+
       if (buyerType === "customer") {
         setFirstName("");
         setLastName("");
@@ -335,12 +420,12 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
         </Card>
       ) : null}
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)]">
         <Card className="border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900/60">
           <CardHeader>
             <CardTitle>Warehouse Models</CardTitle>
             <CardDescription>
-              Select the requested bike model from warehouse stock. This stage does not assign a chassis or engine number.
+              Add one or more requested bike models. This stage does not assign chassis or engine numbers yet.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -350,9 +435,13 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
               placeholder="Search model code or name..."
               className="h-11 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
             />
+
             <div className="max-h-[55vh] space-y-2 overflow-y-auto rounded-2xl border border-slate-200 p-2 dark:border-white/10">
               {filteredModels.map((model) => {
                 const selected = selectedModelCode === model.model_code;
+                const requestedLine = requestedVehicles.find((item) => item.model_code === model.model_code);
+                const availability = localAvailabilityByModel.get(model.model_code);
+
                 return (
                   <button
                     key={model.model_code}
@@ -369,10 +458,16 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
                         <p className="text-sm font-semibold text-slate-900 dark:text-white">{model.model_name}</p>
                         <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{model.model_code}</p>
                       </div>
-                      <Badge variant="outline">{selected ? "Selected" : "Select"}</Badge>
+                      <div className="flex items-center gap-2">
+                        {requestedLine ? <Badge variant="outline">Requested x{requestedLine.quantity}</Badge> : null}
+                        <Badge variant="outline">{selected ? "Selected" : "Select"}</Badge>
+                      </div>
                     </div>
                     <p className="mt-2 text-xs text-slate-600 dark:text-slate-300">
                       Warehouse qty: {model.warehouse_quantity}
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-300">
+                      Local availability: {availability?.count || 0} vehicle(s)
                     </p>
                     <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
                       Price: Rs{model.price.toLocaleString()}
@@ -390,7 +485,7 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
               {buyerType === "customer" ? <User className="h-5 w-5" /> : <Building2 className="h-5 w-5" />}
               Advance Booking
             </CardTitle>
-            <CardDescription>Save the buyer details and generate the two pre-sale documents.</CardDescription>
+            <CardDescription>Save buyer details, collect the advance, and generate both pre-sale documents.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {selectedModel ? (
@@ -407,37 +502,82 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
                   <p className="text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     {targetType === "dealer" ? "Dealer" : "Showroom"} availability
                   </p>
-                  {checkingAvailability ? (
-                    <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Checking local stock...</p>
-                  ) : localAvailability?.available ? (
-                    <>
-                      <p className="mt-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400">
-                        {localAvailability.count} vehicle(s) currently available in this {targetType}
-                      </p>
-                      <div className="mt-2 space-y-2">
-                        {localAvailability.vehicles.map((vehicle) => (
-                          <div
-                            key={vehicle.id}
-                            className="rounded-md border border-slate-200 px-3 py-2 text-xs dark:border-white/10"
-                          >
-                            <p className="font-mono text-slate-700 dark:text-slate-300">ENG: {vehicle.engine_number}</p>
-                            <p className="font-mono text-slate-700 dark:text-slate-300">CHS: {vehicle.chassis_number}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </>
-                  ) : (
-                    <p className="mt-2 text-sm font-semibold text-amber-600 dark:text-amber-400">
-                      This model is not currently available in this {targetType}. No local vehicles to show yet.
-                    </p>
-                  )}
+                  <p className="mt-2 text-sm font-semibold text-slate-900 dark:text-white">
+                    {selectedModelAvailability?.count || 0} vehicle(s) currently available
+                  </p>
+                  <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                    Available colors: {selectedModelAvailability?.colors.length ? selectedModelAvailability.colors.join(", ") : "No colors currently available"}
+                  </p>
                 </div>
+
+                <Button onClick={addSelectedModel} className="w-full">
+                  Add Requested Model
+                </Button>
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
                 Select a warehouse model to continue.
               </div>
             )}
+
+            <div className="space-y-3 rounded-xl border border-slate-200 bg-slate-50 p-3 dark:border-white/10 dark:bg-slate-800/30">
+              <div className="flex items-center justify-between gap-3">
+                <p className="font-semibold text-slate-900 dark:text-white">Requested vehicles</p>
+                <Badge variant="outline">{requestedVehicleDetails.length} model(s)</Badge>
+              </div>
+
+              {requestedVehicleDetails.length === 0 ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  No vehicle models added yet.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {requestedVehicleDetails.map((item) => (
+                    <div
+                      key={item.model_code}
+                      className="rounded-lg border border-slate-200 bg-white p-3 dark:border-white/10 dark:bg-slate-900/40"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.model_name}</p>
+                          <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{item.model_code}</p>
+                          <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                            Available colors: {item.availableColors.length ? item.availableColors.join(", ") : "No colors currently available"}
+                          </p>
+                          <p className="text-xs text-slate-600 dark:text-slate-300">
+                            Local availability: {item.availableCount} vehicle(s)
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="outline"
+                          onClick={() => removeRequestedModel(item.model_code)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+
+                      <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label>Requested quantity</Label>
+                          <Input
+                            type="number"
+                            min={1}
+                            value={String(item.quantity)}
+                            onChange={(event) => updateRequestedQuantity(item.model_code, event.target.value)}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Unit price</Label>
+                          <Input value={formatMoneyForInput(String(item.price))} readOnly />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
 
             {buyerType === "customer" ? (
               <div className="grid gap-4 md:grid-cols-2">
@@ -504,6 +644,10 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
                   <Input value={basePrice} onChange={(event) => setBasePrice(sanitizeMoneyInput(event.target.value))} onBlur={() => setBasePrice(formatMoneyForInput(basePrice))} />
                 </div>
                 <div className="space-y-2">
+                  <Label>Registration fee</Label>
+                  <Input value={registrationFee} onChange={(event) => setRegistrationFee(sanitizeMoneyInput(event.target.value))} onBlur={() => setRegistrationFee(formatMoneyForInput(registrationFee))} />
+                </div>
+                <div className="space-y-2">
                   <Label>Advance received</Label>
                   <Input value={advancePayment} onChange={(event) => setAdvancePayment(sanitizeMoneyInput(event.target.value))} onBlur={() => setAdvancePayment(formatMoneyForInput(advancePayment))} />
                 </div>
@@ -511,7 +655,7 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
                   <Label>Discount</Label>
                   <Input value={discount} onChange={(event) => setDiscount(sanitizeMoneyInput(event.target.value))} onBlur={() => setDiscount(formatMoneyForInput(discount))} />
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-2 md:col-span-2">
                   <Label>Method</Label>
                   <Input value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} />
                 </div>
@@ -523,7 +667,7 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
               onClick={handleSubmit}
               disabled={
                 submitting ||
-                !selectedModel ||
+                requestedVehicleDetails.length === 0 ||
                 (buyerType === "customer" ? !firstName || !lastName || !phone : !companyName || !companyEmail)
               }
             >
