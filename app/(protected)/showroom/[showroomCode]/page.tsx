@@ -232,7 +232,7 @@ export default async function ShowroomStockPage({
                 Quotations
               </CardTitle>
               <CardDescription className="text-slate-600 dark:text-slate-400">
-                Generate quotations and performer invoices for requested vehicles and spares without saving buyer details.
+                Generate quotations and performer invoices for requested vehicles and spares
               </CardDescription>
             </CardHeader>
             <CardContent>

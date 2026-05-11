@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import Loading from "@/app/loading";
 
 type BuyerType = "customer" | "company";
 
@@ -392,7 +393,7 @@ export default function AdvanceBookingForm({ buyerType }: { buyerType: BuyerType
   }
 
   if (loading) {
-    return <div className="p-6 text-sm text-slate-600 dark:text-slate-300">Loading warehouse models...</div>;
+    return <div className="p-6 text-sm text-slate-600 dark:text-slate-300"><Loading /></div>;
   }
 
   return (

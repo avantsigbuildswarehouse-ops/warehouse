@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { generatePartnerPerformerInvoicePdf, generatePartnerQuotationPdf, type PartnerQuotationItem } from "@/lib/utils/sales/partner-quotation-documents";
+import Loading from "@/app/loading";
 
 type WarehouseModel = {
   model_code: string;
@@ -297,7 +298,7 @@ export default function PartnerQuotationForm() {
   }
 
   if (loading) {
-    return <div className="p-6 text-sm text-slate-600 dark:text-slate-300">Loading quotation workspace...</div>;
+    return <div className="p-6 text-sm text-slate-600 dark:text-slate-300"><Loading /></div>;
   }
 
   return (
@@ -403,7 +404,7 @@ export default function PartnerQuotationForm() {
               <FileText className="h-5 w-5" />
               Quotations Workspace
             </CardTitle>
-            <CardDescription>Generate a quotation plus performer invoice without saving any customer, company, or document data.</CardDescription>
+            <CardDescription>Generate a quotation plus performer invoice.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-800/30">

@@ -12,6 +12,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { formatMoneyForInput, moneyInputToNumber, sanitizeMoneyInput } from "@/components/Forms/sales/sales-utils";
+import Loading from "@/app/loading";
 
 type VehicleRow = {
   id: string;
@@ -243,7 +244,7 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
   }
 
   if (loading) {
-    return <div className="p-6 text-sm text-slate-600 dark:text-slate-300">Loading available inventory...</div>;
+    return <div className="p-6 text-sm text-slate-600 dark:text-slate-300"><Loading /></div>;
   }
 
   return (
