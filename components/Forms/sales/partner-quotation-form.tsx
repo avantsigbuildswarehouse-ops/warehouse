@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { generatePartnerPerformerInvoicePdf, generatePartnerQuotationPdf, type PartnerQuotationItem } from "@/lib/utils/sales/partner-quotation-documents";
 import Loading from "@/app/loading";
 
@@ -52,6 +53,20 @@ type SpareOption = {
   available_quantity: number;
 };
 
+type CustomerType = "individual" | "company";
+
+type CustomerDetails = {
+  type: CustomerType;
+  // Individual fields
+  customerName?: string;
+  phone?: string;
+  nic?: string;
+  // Company fields
+  companyName?: string;
+  companyEmail?: string;
+  companyPhone?: string;
+};
+
 export default function PartnerQuotationForm() {
   const params = useParams();
   const dealerCode = (params.dealerCode as string | undefined) || "";
@@ -74,6 +89,15 @@ export default function PartnerQuotationForm() {
   const [advancePayment, setAdvancePayment] = useState("");
   const [discount, setDiscount] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Advance payment");
+  
+  // Customer details state
+  const [customerType, setCustomerType] = useState<CustomerType>("individual");
+  const [customerDetails, setCustomerDetails] = useState<CustomerDetails>({
+    type: "individual",
+    customerName: "",
+    phone: "",
+    nic: "",
+  });
 
   useEffect(() => {
     const load = async () => {
@@ -202,6 +226,11 @@ export default function PartnerQuotationForm() {
     [spareLines, spareOptions]
   );
 
+  // Check if only spares are selected (no vehicles)
+  const hasOnlySpares = useMemo(() => {
+    return vehicleDetails.length === 0 && spareDetails.length > 0;
+  }, [vehicleDetails.length, spareDetails.length]);
+
   const basePrice = useMemo(() => {
     const vehicleTotal = vehicleDetails.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
     const spareTotal = spareDetails.reduce((sum, item) => sum + item.quantity * item.unit_price, 0);
@@ -248,8 +277,21 @@ export default function PartnerQuotationForm() {
 
   const totalItems = vehicleDetails.length + spareDetails.length;
 
+  // Validate customer details
+  const isCustomerDetailsValid = useMemo(() => {
+    if (customerType === "individual") {
+      return !!(customerDetails.customerName?.trim() && 
+                 customerDetails.phone?.trim() && 
+                 customerDetails.nic?.trim());
+    } else {
+      return !!(customerDetails.companyName?.trim() && 
+                 customerDetails.companyEmail?.trim() && 
+                 customerDetails.companyPhone?.trim());
+    }
+  }, [customerType, customerDetails]);
+
   async function handleGenerate() {
-    if (totalItems === 0) return;
+    if (totalItems === 0 || !isCustomerDetailsValid) return;
 
     setSubmitting(true);
     setErrorMessage(null);
@@ -275,15 +317,28 @@ export default function PartnerQuotationForm() {
         })),
       ];
 
+      // For spares-only orders, registration fee should be 0
+      const effectiveRegistrationFee = hasOnlySpares ? 0 : moneyInputToNumber(registrationFee);
+      
+      // Fixed: Create payload without spreading customerDetails to avoid type conflict
       const payload = {
         targetType,
         targetCode,
         items,
         basePrice,
-        registrationFee: moneyInputToNumber(registrationFee),
+        registrationFee: effectiveRegistrationFee,
         advancePayment: moneyInputToNumber(advancePayment),
         discount: moneyInputToNumber(discount),
         paymentMethod,
+        customerDetails: {
+          type: customerType,
+          customerName: customerDetails.customerName,
+          phone: customerDetails.phone,
+          nic: customerDetails.nic,
+          companyName: customerDetails.companyName,
+          companyEmail: customerDetails.companyEmail,
+          companyPhone: customerDetails.companyPhone,
+        },
       } as const;
 
       await generatePartnerQuotationPdf(payload);
@@ -398,112 +453,237 @@ export default function PartnerQuotationForm() {
           </Card>
         </div>
 
-        <Card className="border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900/60">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5" />
-              Quotations Workspace
-            </CardTitle>
-            <CardDescription>Generate a quotation plus performer invoice.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-800/30">
-              <p className="font-semibold text-slate-900 dark:text-white">{totalItems} line item(s) prepared</p>
-              <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Target: {targetType} / {targetCode}</p>
-            </div>
+        <div className="space-y-6">
+          {/* Customer Details Card */}
+          <Card className="border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900/60">
+            <CardHeader>
+              <CardTitle>Customer Details</CardTitle>
+              <CardDescription>Select customer type and enter their information</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <RadioGroup
+                value={customerType}
+                onValueChange={(value: CustomerType) => {
+                  setCustomerType(value);
+                  // Reset customer details based on selected type
+                  if (value === "individual") {
+                    setCustomerDetails({
+                      type: value,
+                      customerName: "",
+                      phone: "",
+                      nic: "",
+                    });
+                  } else {
+                    setCustomerDetails({
+                      type: value,
+                      companyName: "",
+                      companyEmail: "",
+                      companyPhone: "",
+                    });
+                  }
+                }}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="individual" id="individual" />
+                  <Label htmlFor="individual">Individual / Customer</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="company" id="company" />
+                  <Label htmlFor="company">Company</Label>
+                </div>
+              </RadioGroup>
 
-            <div className="space-y-3">
-              {vehicleDetails.map((item) => (
-                <div key={item.model_code} className="rounded-lg border border-slate-200 p-3 dark:border-white/10">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.model_name}</p>
-                      <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{item.model_code}</p>
-                      <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                        Colors: {item.colors.length ? item.colors.join(", ") : "None currently available"}
-                      </p>
-                    </div>
-                    <Button type="button" size="icon" variant="outline" onClick={() => setVehicleLines((current) => current.filter((line) => line.model_code !== item.model_code))}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+              {customerType === "individual" ? (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="customerName">Customer Name *</Label>
+                    <Input
+                      id="customerName"
+                      value={customerDetails.customerName || ""}
+                      onChange={(e) => setCustomerDetails({ ...customerDetails, customerName: e.target.value })}
+                      placeholder="Enter customer name"
+                    />
                   </div>
-                  <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Quantity</Label>
-                      <Input type="number" min={1} value={String(item.quantity)} onChange={(event) => updateVehicleQuantity(item.model_code, event.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Unit price</Label>
-                      <Input readOnly value={formatMoneyForInput(String(item.unit_price))} />
-                    </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone Number *</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={customerDetails.phone || ""}
+                      onChange={(e) => setCustomerDetails({ ...customerDetails, phone: e.target.value })}
+                      placeholder="Enter phone number"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="nic">NIC *</Label>
+                    <Input
+                      id="nic"
+                      value={customerDetails.nic || ""}
+                      onChange={(e) => setCustomerDetails({ ...customerDetails, nic: e.target.value })}
+                      placeholder="Enter NIC number"
+                    />
                   </div>
                 </div>
-              ))}
+              ) : (
+                <div className="space-y-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="companyName">Company Name *</Label>
+                    <Input
+                      id="companyName"
+                      value={customerDetails.companyName || ""}
+                      onChange={(e) => setCustomerDetails({ ...customerDetails, companyName: e.target.value })}
+                      placeholder="Enter company name"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="companyEmail">Company Email *</Label>
+                    <Input
+                      id="companyEmail"
+                      type="email"
+                      value={customerDetails.companyEmail || ""}
+                      onChange={(e) => setCustomerDetails({ ...customerDetails, companyEmail: e.target.value })}
+                      placeholder="Enter company email"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="companyPhone">Company Phone *</Label>
+                    <Input
+                      id="companyPhone"
+                      type="tel"
+                      value={customerDetails.companyPhone || ""}
+                      onChange={(e) => setCustomerDetails({ ...customerDetails, companyPhone: e.target.value })}
+                      placeholder="Enter company phone number"
+                    />
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-              {spareDetails.map((item) => (
-                <div key={item.key} className="rounded-lg border border-slate-200 p-3 dark:border-white/10">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.spare_code}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{item.model_code}</p>
-                      <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
-                        Available quantity now: {item.available_quantity}
-                      </p>
-                    </div>
-                    <Button type="button" size="icon" variant="outline" onClick={() => setSpareLines((current) => current.filter((line) => line.key !== item.key))}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <div className="mt-3 grid gap-3 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label>Quantity</Label>
-                      <Input type="number" min={1} value={String(item.quantity)} onChange={(event) => updateSpareQuantity(item.key, event.target.value)} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Unit price</Label>
-                      <Input readOnly value={formatMoneyForInput(String(item.unit_price))} />
-                    </div>
-                  </div>
-                </div>
-              ))}
+          {/* Quotations Workspace Card */}
+          <Card className="border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900/60">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="h-5 w-5" />
+                Quotations Workspace
+              </CardTitle>
+              <CardDescription>Generate a quotation plus performer invoice.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm dark:border-white/10 dark:bg-slate-800/30">
+                <p className="font-semibold text-slate-900 dark:text-white">{totalItems} line item(s) prepared</p>
+                <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">Target: {targetType} / {targetCode}</p>
+                {hasOnlySpares && (
+                  <p className="mt-1 text-xs text-amber-600 dark:text-amber-400">Note: Registration fee is not applicable for spare parts only orders</p>
+                )}
+              </div>
 
-              {totalItems === 0 ? (
-                <div className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
-                  Add at least one vehicle model or spare item to begin.
-                </div>
-              ) : null}
-            </div>
+              <div className="space-y-3">
+                {vehicleDetails.map((item) => (
+                  <div key={item.model_code} className="rounded-lg border border-slate-200 p-3 dark:border-white/10">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.model_name}</p>
+                        <p className="text-xs font-mono text-slate-500 dark:text-slate-400">{item.model_code}</p>
+                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                          Colors: {item.colors.length ? item.colors.join(", ") : "None currently available"}
+                        </p>
+                      </div>
+                      <Button type="button" size="icon" variant="outline" onClick={() => setVehicleLines((current) => current.filter((line) => line.model_code !== item.model_code))}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Quantity</Label>
+                        <Input type="number" min={1} value={String(item.quantity)} onChange={(event) => updateVehicleQuantity(item.model_code, event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Unit price</Label>
+                        <Input readOnly value={formatMoneyForInput(String(item.unit_price))} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
 
-            <div className="border-t border-slate-200 pt-4 dark:border-white/10">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Base price</Label>
-                  <Input readOnly value={formatMoneyForInput(String(basePrice))} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Registration fee</Label>
-                  <Input value={registrationFee} onChange={(event) => setRegistrationFee(sanitizeMoneyInput(event.target.value))} onBlur={() => setRegistrationFee(formatMoneyForInput(registrationFee))} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Advance payment</Label>
-                  <Input value={advancePayment} onChange={(event) => setAdvancePayment(sanitizeMoneyInput(event.target.value))} onBlur={() => setAdvancePayment(formatMoneyForInput(advancePayment))} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Discount</Label>
-                  <Input value={discount} onChange={(event) => setDiscount(sanitizeMoneyInput(event.target.value))} onBlur={() => setDiscount(formatMoneyForInput(discount))} />
-                </div>
-                <div className="space-y-2 md:col-span-2">
-                  <Label>Payment method</Label>
-                  <Input value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} />
+                {spareDetails.map((item) => (
+                  <div key={item.key} className="rounded-lg border border-slate-200 p-3 dark:border-white/10">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.spare_code}</p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">{item.model_code}</p>
+                        <p className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                          Available quantity now: {item.available_quantity}
+                        </p>
+                      </div>
+                      <Button type="button" size="icon" variant="outline" onClick={() => setSpareLines((current) => current.filter((line) => line.key !== item.key))}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <div className="space-y-2">
+                        <Label>Quantity</Label>
+                        <Input type="number" min={1} value={String(item.quantity)} onChange={(event) => updateSpareQuantity(item.key, event.target.value)} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Unit price</Label>
+                        <Input readOnly value={formatMoneyForInput(String(item.unit_price))} />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {totalItems === 0 ? (
+                  <div className="rounded-xl border border-dashed border-slate-200 p-4 text-sm text-slate-500 dark:border-white/10 dark:text-slate-400">
+                    Add at least one vehicle model or spare item to begin.
+                  </div>
+                ) : null}
+              </div>
+
+              <div className="border-t border-slate-200 pt-4 dark:border-white/10">
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Base price</Label>
+                    <Input readOnly value={formatMoneyForInput(String(basePrice))} />
+                  </div>
+                  {!hasOnlySpares && (
+                    <div className="space-y-2">
+                      <Label>Registration fee</Label>
+                      <Input value={registrationFee} onChange={(event) => setRegistrationFee(sanitizeMoneyInput(event.target.value))} onBlur={() => setRegistrationFee(formatMoneyForInput(registrationFee))} />
+                    </div>
+                  )}
+                  <div className="space-y-2">
+                    <Label>Advance payment</Label>
+                    <Input value={advancePayment} onChange={(event) => setAdvancePayment(sanitizeMoneyInput(event.target.value))} onBlur={() => setAdvancePayment(formatMoneyForInput(advancePayment))} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Discount</Label>
+                    <Input value={discount} onChange={(event) => setDiscount(sanitizeMoneyInput(event.target.value))} onBlur={() => setDiscount(formatMoneyForInput(discount))} />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label>Payment method</Label>
+                    <Input value={paymentMethod} onChange={(event) => setPaymentMethod(event.target.value)} />
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <Button disabled={submitting || totalItems === 0} onClick={handleGenerate} className="w-full">
-              {submitting ? "Generating documents..." : "Generate Quotation + Performer Invoice"}
-            </Button>
-          </CardContent>
-        </Card>
+              <Button 
+                disabled={submitting || totalItems === 0 || !isCustomerDetailsValid} 
+                onClick={handleGenerate} 
+                className="w-full"
+              >
+                {submitting ? "Generating documents..." : "Generate Quotation + Performer Invoice"}
+              </Button>
+              
+              {!isCustomerDetailsValid && totalItems > 0 && (
+                <p className="text-xs text-red-500 text-center">
+                  Please fill in all required customer details
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
