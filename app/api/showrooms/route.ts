@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminRequest } from "@/lib/auth/require-admin-request";
 import {
   getShowrooms,
   createShowroom,
@@ -24,11 +25,14 @@ export async function GET() {
  */
 export async function POST(req: Request) {
   try {
+    const authResult = await requireAdminRequest(req);
+    if (!authResult.ok) return authResult.response;
+
     const body = await req.json();
 
-    await createShowroom(body);
+    const showroom = await createShowroom(body);
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, showroom });
   } catch (err) {
     return NextResponse.json(
       { error: (err as Error).message },

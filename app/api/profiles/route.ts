@@ -1,37 +1,24 @@
 import { NextResponse } from "next/server";
-import { requireAdminRoute } from "@/lib/auth/require-admin-route";
+import { requireAdminRequest } from "@/lib/auth/require-admin-request";
+import { verifyAdminCredentials } from "@/lib/auth/verify-admin-credentials";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
+import type { ProfileRecord, ProfileRole } from "@/types/admin";
 
-type Profile = {
-    id: string;
-    email: string;
-    role: string;
-    code: string;
-    created_at: string; 
-}
+type CreateProfileBody = {
+  email: string;
+  password: string;
+  role: ProfileRole;
+  code?: string | null;
+  adminEmail: string;
+  adminPassword: string;
+};
 
 const supabaseAdmin = getSupabaseAdmin();
 
 export async function GET(req: Request) {
   try {
-    // Check for authentication header
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
-
-    const token = authHeader.substring(7);
-    const { data: userData, error: userError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (userError || !userData.user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
-    }
+    const authResult = await requireAdminRequest(req);
+    if (!authResult.ok) return authResult.response;
 
     const { searchParams } = new URL(req.url);
     const page = parseInt(searchParams.get('page') || '1', 10);
@@ -72,15 +59,66 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const authError = await requireAdminRoute();
-    if (authError) return authError;
+    const authResult = await requireAdminRequest(req);
+    if (!authResult.ok) return authResult.response;
 
-    const body: Profile = await req.json();
+    const body: CreateProfileBody = await req.json();
+    const email = body.email?.trim().toLowerCase();
+    const password = body.password;
+    const role = body.role;
+    const code = body.code?.trim() || null;
+
+    if (!email || !password || !role) {
+      return NextResponse.json(
+        { error: "Email, password, and role are required" },
+        { status: 400 }
+      );
+    }
+
+    if (password.length < 6) {
+      return NextResponse.json(
+        { error: "Password must be at least 6 characters" },
+        { status: 400 }
+      );
+    }
+
+    const verified = await verifyAdminCredentials(
+      body.adminEmail,
+      body.adminPassword
+    );
+
+    if (!verified) {
+      return NextResponse.json(
+        { error: "Invalid admin credentials" },
+        { status: 401 }
+      );
+    }
+
+    const { data: createdUser, error: createUserError } =
+      await supabaseAdmin.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+        user_metadata: { role, code },
+      });
+
+    if (createUserError || !createdUser.user) {
+      return NextResponse.json(
+        { error: createUserError?.message ?? "Failed to create auth user" },
+        { status: 500 }
+      );
+    }
+
+    const profile: Omit<ProfileRecord, "created_at"> = {
+      id: createdUser.user.id,
+      email,
+      role,
+      code,
+    };
 
     const { error } = await supabaseAdmin
-      .schema("public")
       .from("profiles")
-      .insert(body);
+      .upsert(profile, { onConflict: "id" });
 
     if (error) {
       return NextResponse.json(
@@ -89,7 +127,7 @@ export async function POST(req: Request) {
       );
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, profile });
   } catch {
     return NextResponse.json(
       { error: "Invalid request" },

@@ -17,7 +17,7 @@ export async function getUserRole() {
       .from("profiles")
       .select("role")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     if (error || !data) {
       return null;

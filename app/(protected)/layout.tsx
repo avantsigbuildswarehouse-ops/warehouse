@@ -19,7 +19,7 @@ export default async function ProtectedLayout({
     .from("profiles")
     .select("role, email, code")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   const role = profile?.role ?? null;
   const email = profile?.email ?? null;

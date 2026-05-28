@@ -15,13 +15,13 @@ export async function GET(req: Request) {
 
     if (!type || type === "all" || type === "showroom") {
       const { data: showroomBikes } = await supabaseAdmin
-        .schema("ASB showrooms")
+        .schema("asb_showrooms")
         .from("showroom_vehicle_inventory")
         .select("*")
         .order("issued_at", { ascending: false });
 
       const { data: showroomSpares } = await supabaseAdmin
-        .schema("ASB showrooms")
+        .schema("asb_showrooms")
         .from("showroom_spare_inventory")
         .select("*")
         .order("issued_at", { ascending: false });
@@ -53,13 +53,13 @@ export async function GET(req: Request) {
 
     if (!type || type === "all" || type === "dealer") {
       const { data: dealerBikes } = await supabaseAdmin
-        .schema("ASB showrooms")
+        .schema("asb_showrooms")
         .from("dealer_vehicle_inventory")
         .select("*")
         .order("issued_at", { ascending: false });
 
       const { data: dealerSpares } = await supabaseAdmin
-        .schema("ASB showrooms")
+        .schema("asb_showrooms")
         .from("dealer_spare_inventory")
         .select("*")
         .order("issued_at", { ascending: false });

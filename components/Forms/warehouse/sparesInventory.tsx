@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CircleDollarSign, PackagePlus, RefreshCw, Wrench } from "lucide-react";
+import { CircleDollarSign, PackagePlus, RefreshCw, Upload, Wrench } from "lucide-react";
 
 import {
   vehicleSpareSchema,
@@ -89,7 +89,10 @@ export default function SparesInventory() {
   const [loadingSpares, setLoadingSpares] = useState(false);
   const [loadingInventory, setLoadingInventory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
   const [status, setStatus] = useState<StatusState>(null);
+  const [autoCreateSpares, setAutoCreateSpares] = useState(false);
 
   const {
     register,
@@ -262,6 +265,51 @@ export default function SparesInventory() {
       });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function importSpares() {
+    if (!modelCode || !importFile) {
+      setStatus({ tone: "error", message: "Select model and upload file first." });
+      return;
+    }
+
+    if (!spareCode && !autoCreateSpares) {
+      setStatus({ tone: "error", message: "Either select a spare code or enable 'Auto-create spares' option." });
+      return;
+    }
+
+    setImporting(true);
+    setStatus(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("modelCode", modelCode);
+      if (spareCode) formData.append("spareCode", spareCode);
+      formData.append("autoCreateSpares", String(autoCreateSpares));
+      formData.append("file", importFile);
+
+      const res = await fetch("/api/warehouse/spare-inventory/import", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await res.json();
+
+      if (!res.ok) throw new Error(result.error || "Failed to import spare stock");
+
+      setStatus({
+        tone: "success",
+        message: `Imported ${result.added} spare serial(s)${result.createdSpares ? ` (${result.createdSpares} new spare type${result.createdSpares > 1 ? 's' : ''})` : ''}. Skipped ${result.skipped || 0} unmatched/invalid row(s).`,
+      });
+      setImportFile(null);
+      await Promise.all([loadSpares(modelCode), loadInventory(), loadAllSpares()]);
+    } catch (error) {
+      setStatus({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Failed to import spare stock",
+      });
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -466,7 +514,7 @@ export default function SparesInventory() {
                   </div>
                   {errors.spareCode ? (
                     <p className="text-sm text-red-600">
-                      {errors.spareCode.message}
+                      {errors.spareCode.message || "Select a spare code or enable auto-create spares below"}
                     </p>
                   ) : null}
                 </div>
@@ -507,6 +555,54 @@ export default function SparesInventory() {
                     </div>
                   </div>
                 ) : null}
+
+                <div className="rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 p-4 dark:border-sky-500/20 dark:bg-sky-500/10">
+                  <div className="mb-3">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Import spare stock from file
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      Allowed: PDF, XLSX, TSV, ODS. Rows import only when Model matches the selected model. Spare is matched when present. Excel columns: Model, Spare Name, Serial Number, Price.
+                    </p>
+                  </div>
+                  
+                  <div className="mb-3 space-y-2">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={autoCreateSpares}
+                        onChange={(e) => setAutoCreateSpares(e.target.checked)}
+                        disabled={importing}
+                        className="cursor-pointer"
+                      />
+                      <span className="text-sm text-slate-700 dark:text-slate-300">
+                        Auto-create spare types from file (if not already exists)
+                      </span>
+                    </label>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 ml-6">
+                      {autoCreateSpares 
+                        ? "Spare codes will be auto-generated based on spare names. You can still select a specific spare to import into."
+                        : "Select a specific spare code below. Enable auto-create to import multiple spare types at once."}
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                    <Input
+                      type="file"
+                      accept=".pdf,.xlsx,.tsv,.ods"
+                      onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
+                      disabled={!modelCode || importing}
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => void importSpares()}
+                      disabled={!modelCode || !importFile || importing || (!spareCode && !autoCreateSpares)}
+                    >
+                      <Upload className="size-4" />
+                      {importing ? "Importing..." : "Upload & Import"}
+                    </Button>
+                  </div>
+                </div>
 
                 <div className="space-y-4">
                   {fields.map((field, index) => (

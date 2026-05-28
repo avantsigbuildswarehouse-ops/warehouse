@@ -26,7 +26,7 @@ export async function getDealers(): Promise<Dealer[]> {
 }
 
 /* ---------------- CREATE ---------------- */
-export async function createDealer(input: Dealer) {
+export async function createDealer(input: Omit<Dealer, "dealer_code"> & { dealer_code?: string }) {
   const res = await fetch("/api/dealers", {
     method: "POST",
     headers: {

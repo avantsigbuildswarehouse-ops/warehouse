@@ -19,6 +19,7 @@ type GroupedRequest = {
   id: string;
   reference_no: string;
   showroom_code: string;
+  showroom_name?: string;
   item_type: string;
   items_count: number;
   total_value: number;
@@ -41,8 +42,14 @@ export async function GET(req: Request) {
 
     console.log("Fetching requests for showroom:", showroomCode);
 
-    // Fetch both tables in parallel using supabaseAdmin
-    const [vehicleResult, spareResult] = await Promise.all([
+    // Fetch showroom info and requests in parallel
+    const [showroomResult, vehicleResult, spareResult] = await Promise.all([
+      supabaseAdmin
+        .schema("asb_showrooms")
+        .from("asb_showrooms")
+        .select("showroom_code, city, state")
+        .eq("showroom_code", showroomCode)
+        .single(),
       supabaseAdmin
         .from("showroom_vehicle_requests")
         .select("*")
@@ -73,6 +80,9 @@ export async function GET(req: Request) {
 
     const vehicleRequests = vehicleResult.data || [];
     const spareRequests = spareResult.data || [];
+    const showroomName = showroomResult.data 
+      ? `${showroomResult.data.city}, ${showroomResult.data.state}`
+      : undefined;
 
     console.log(`Found ${vehicleRequests.length} vehicle requests and ${spareRequests.length} spare requests`);
 
@@ -82,8 +92,8 @@ export async function GET(req: Request) {
     }
 
     // Group by reference_no
-    const groupedVehicles = groupByReference(vehicleRequests, "Bike");
-    const groupedSpares = groupByReference(spareRequests, "Spare");
+    const groupedVehicles = groupByReference(vehicleRequests, "Bike", showroomName);
+    const groupedSpares = groupByReference(spareRequests, "Spare", showroomName);
 
     const allRequests = [...groupedVehicles, ...groupedSpares]
       .sort((a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime());
@@ -101,7 +111,7 @@ export async function GET(req: Request) {
   }
 }
 
-function groupByReference(items: RequestRow[], itemType: string) {
+function groupByReference(items: RequestRow[], itemType: string, showroomName?: string) {
   const groups = new Map<string, GroupedRequest>();
 
   items.forEach((item) => {
@@ -111,6 +121,7 @@ function groupByReference(items: RequestRow[], itemType: string) {
         id: groupRef,
         reference_no: groupRef,
         showroom_code: item.showroom_code,
+        showroom_name: showroomName,
         item_type: itemType,
         items_count: 0,
         total_value: 0,

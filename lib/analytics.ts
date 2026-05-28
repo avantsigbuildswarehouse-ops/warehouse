@@ -138,7 +138,7 @@ export async function getPartnerAnalytics(
   targetType: "dealer" | "showroom",
   targetCode: string
 ): Promise<PartnerAnalyticsData> {
-  const schema = "ASB showrooms";
+  const schema = "asb_showrooms";
   const vehicleTable =
     targetType === "dealer" ? "dealer_vehicle_inventory" : "showroom_vehicle_inventory";
   const spareTable =
@@ -249,7 +249,7 @@ export async function getPartnerAnalytics(
 }
 
 export async function getAdminAnalytics(): Promise<AdminAnalyticsData> {
-  const schema = "ASB showrooms";
+  const schema = "asb_showrooms";
 
   const [
     profilesResult,

@@ -161,7 +161,7 @@ export async function getSalesHistoryData({
   targetCode: string;
   stageFilter?: "all" | "completed" | "advance";
 }): Promise<SalesHistoryData> {
-  const schema = "ASB showrooms";
+  const schema = "asb_showrooms";
   const vehicleTable =
     targetType === "dealer" ? "dealer_vehicle_inventory" : "showroom_vehicle_inventory";
   const spareTable =

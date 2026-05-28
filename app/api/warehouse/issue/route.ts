@@ -82,7 +82,7 @@ export async function POST(req: Request) {
       }));
 
       const { error: insertErr } = await supabaseAdmin
-        .schema("ASB showrooms")
+        .schema("asb_showrooms")
         .from(insertTable)
         .insert(insertPayload);
 
@@ -144,7 +144,7 @@ export async function POST(req: Request) {
       }));
 
       const { error: insertErr } = await supabaseAdmin
-        .schema("ASB showrooms")
+        .schema("asb_showrooms")
         .from(insertTable)
         .insert(insertPayload);
 

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { RefreshCw, Plus } from "lucide-react";
+import { RefreshCw, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -16,6 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { AdminCredentialsModal } from "@/components/admin/admin-credentials-modal";
 
 type Showroom = {
   showroom_code: string;
@@ -26,20 +27,16 @@ type Showroom = {
   created_at: string;
 };
 
-function generateLocalCode(last?: string) {
-  if (!last) return "ASB-SH-001";
-
-  const match = last.match(/ASB-SH-(\d+)/);
-  const num = match ? parseInt(match[1], 10) + 1 : 1;
-
-  return `ASB-SH-${String(num).padStart(3, "0")}`;
-}
-
 export default function ShowroomPage() {
   const [showrooms, setShowrooms] = useState<Showroom[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  const [deleteShowroom, setDeleteShowroom] = useState<Showroom | null>(null);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const {
     register,
@@ -66,7 +63,7 @@ export default function ShowroomPage() {
 
       const data = await res.json();
       setShowrooms(data);
-    } catch (err) {
+    } catch {
       setStatus("Failed to load showrooms");
     } finally {
       setLoading(false);
@@ -82,14 +79,10 @@ export default function ShowroomPage() {
     setStatus(null);
 
     try {
-      const last = showrooms[0]?.showroom_code;
-      const code = generateLocalCode(last);
-
       const res = await fetch("/api/showrooms", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          showroom_code: code,
           city: data.city.trim(),
           state: data.state.trim(),
           address: data.address.trim(),
@@ -98,14 +91,57 @@ export default function ShowroomPage() {
       });
 
       if (!res.ok) throw new Error("Insert failed");
+      const result = await res.json();
 
-      setStatus(`Showroom ${code} created`);
+      setStatus(`Showroom ${result?.showroom?.showroom_code ?? ""} created`);
       reset();
       await loadShowrooms();
     } catch (err) {
       setStatus(err instanceof Error ? err.message : "Error");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  function openDelete(showroom: Showroom) {
+    setDeleteShowroom(showroom);
+    setAdminEmail("");
+    setAdminPassword("");
+    setDeleteError(null);
+  }
+
+  async function confirmDelete() {
+    if (!deleteShowroom) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch("/api/admin/records", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target: "showroom",
+          id: deleteShowroom.showroom_code,
+          adminEmail,
+          adminPassword,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error ?? "Failed to delete showroom");
+      }
+
+      setDeleteShowroom(null);
+      setStatus(`Showroom ${deleteShowroom.showroom_code} deleted`);
+      await loadShowrooms();
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete showroom"
+      );
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -243,29 +279,61 @@ export default function ShowroomPage() {
               showrooms.map((s) => (
                 <div
                   key={s.showroom_code}
-                  className="rounded-2xl border border-slate-200 p-4 transition-colors dark:border-white/10 dark:bg-slate-800/20"
+                  className="flex justify-between gap-4 rounded-2xl border border-slate-200 p-4 transition-colors dark:border-white/10 dark:bg-slate-800/20"
                 >
-                  <p className="font-semibold text-slate-950 dark:text-white">
-                    {s.city}
-                  </p>
-                  <p className="text-sm text-slate-600 dark:text-slate-400">
-                    {s.state}
-                  </p>
-                  <p className="mt-1 text-xs font-mono text-slate-500 dark:text-slate-500">
-                    {s.showroom_code}
-                  </p>
-                  <Link
-                      href={`/admin/Showroom/${s.showroom_code}`}
-                      className="mt-2 text-sky-600 dark:text-sky-400 text-sm hover:background-sky-100 dark:hover:bg-sky-500/10 rounded transition-colors"
+                  <div>
+                    <p className="font-semibold text-slate-950 dark:text-white">
+                      {s.city}
+                    </p>
+                    <p className="text-sm text-slate-600 dark:text-slate-400">
+                      {s.state}
+                    </p>
+                    <p className="mt-1 text-xs font-mono text-slate-500 dark:text-slate-500">
+                      {s.showroom_code}
+                    </p>
+                    <Link
+                        href={`/admin/Showroom/${s.showroom_code}`}
+                        className="mt-2 text-sky-600 dark:text-sky-400 text-sm hover:background-sky-100 dark:hover:bg-sky-500/10 rounded transition-colors"
+                      >
+                        View Stock
+                    </Link>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Badge variant={s.is_active ? "default" : "secondary"}>
+                      {s.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => openDelete(s)}
                     >
-                      View Stock
-                  </Link>
+                      <Trash2 className="size-4" />
+                      Delete
+                    </Button>
+                  </div>
                 </div>
                 
               ))
             )}
           </CardContent>
         </Card>
+
+        {deleteShowroom && (
+          <AdminCredentialsModal
+            title="Delete Showroom"
+            description={`Confirm admin credentials to delete ${deleteShowroom.city}. Related stock or sales may block deletion.`}
+            confirmLabel="Delete"
+            adminEmail={adminEmail}
+            adminPassword={adminPassword}
+            error={deleteError}
+            loading={deleting}
+            onEmailChange={setAdminEmail}
+            onPasswordChange={setAdminPassword}
+            onClose={() => setDeleteShowroom(null)}
+            onConfirm={confirmDelete}
+          />
+        )}
 
       </div>
     </div>

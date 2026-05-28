@@ -29,7 +29,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const schema = "ASB showrooms";
+    const schema = "asb_showrooms";
     const vehicleTable = targetType === "dealer" ? "dealer_vehicle_inventory" : "showroom_vehicle_inventory";
     const codeField = targetType === "dealer" ? "dealer_code" : "showroom_code";
 

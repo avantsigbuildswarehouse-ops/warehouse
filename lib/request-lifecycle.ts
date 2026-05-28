@@ -300,16 +300,16 @@ export async function issueRequest(referenceNo: string) {
 
   const [insSv, insDv, insSs, insDs] = await Promise.all([
     showroomVehicleInsert.length
-      ? supabaseAdmin.schema("ASB showrooms").from("showroom_vehicle_inventory").insert(showroomVehicleInsert)
+      ? supabaseAdmin.schema("asb_showrooms").from("showroom_vehicle_inventory").insert(showroomVehicleInsert)
       : Promise.resolve({ error: null }),
     dealerVehicleInsert.length
-      ? supabaseAdmin.schema("ASB showrooms").from("dealer_vehicle_inventory").insert(dealerVehicleInsert)
+      ? supabaseAdmin.schema("asb_showrooms").from("dealer_vehicle_inventory").insert(dealerVehicleInsert)
       : Promise.resolve({ error: null }),
     showroomSpareInsert.length
-      ? supabaseAdmin.schema("ASB showrooms").from("showroom_spare_inventory").insert(showroomSpareInsert)
+      ? supabaseAdmin.schema("asb_showrooms").from("showroom_spare_inventory").insert(showroomSpareInsert)
       : Promise.resolve({ error: null }),
     dealerSpareInsert.length
-      ? supabaseAdmin.schema("ASB showrooms").from("dealer_spare_inventory").insert(dealerSpareInsert)
+      ? supabaseAdmin.schema("asb_showrooms").from("dealer_spare_inventory").insert(dealerSpareInsert)
       : Promise.resolve({ error: null }),
   ]);
 

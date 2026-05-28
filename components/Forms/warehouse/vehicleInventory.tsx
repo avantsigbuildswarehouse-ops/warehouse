@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Bike, Boxes, CircleDollarSign, Plus, RefreshCw } from "lucide-react";
+import { Bike, Boxes, CircleDollarSign, Plus, RefreshCw, Upload } from "lucide-react";
 
 import {
   vehicleInventorySchema,
@@ -85,6 +85,8 @@ export default function VehicleInventoryForm() {
   const [loadingModels, setLoadingModels] = useState(false);
   const [loadingInventory, setLoadingInventory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [importFile, setImportFile] = useState<File | null>(null);
   const [status, setStatus] = useState<StatusState>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -204,6 +206,44 @@ export default function VehicleInventoryForm() {
       });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function importVehicles() {
+    if (!selectedModel || !importFile) {
+      setStatus({ tone: "error", message: "Select a model and upload file first." });
+      return;
+    }
+
+    setImporting(true);
+    setStatus(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("modelCode", selectedModel);
+      formData.append("file", importFile);
+
+      const res = await fetch("/api/warehouse/inventory/import", {
+        method: "POST",
+        body: formData,
+      });
+      const result = await res.json();
+
+      if (!res.ok) throw new Error(result.error || "Failed to import vehicles");
+
+      setStatus({
+        tone: "success",
+        message: `Imported ${result.added} bike(s). Skipped ${result.skipped || 0} unmatched/invalid row(s).`,
+      });
+      setImportFile(null);
+      await Promise.all([loadModels(), loadInventory()]);
+    } catch (error) {
+      setStatus({
+        tone: "error",
+        message: error instanceof Error ? error.message : "Failed to import vehicles",
+      });
+    } finally {
+      setImporting(false);
     }
   }
 
@@ -399,6 +439,33 @@ export default function VehicleInventoryForm() {
                     </div>
                   </div>
                 ) : null}
+
+                <div className="rounded-2xl border border-dashed border-sky-200 bg-sky-50/60 p-4 dark:border-sky-500/20 dark:bg-sky-500/10">
+                  <div className="mb-3">
+                    <p className="text-sm font-semibold text-slate-900 dark:text-white">
+                      Import vehicles from file
+                    </p>
+                    <p className="text-xs text-slate-600 dark:text-slate-400">
+                      Allowed: PDF, XLSX, TSV, ODS. Rows import only when the file Model column matches the selected model name/code.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-3 md:flex-row md:items-center">
+                    <Input
+                      type="file"
+                      accept=".pdf,.xlsx,.tsv,.ods"
+                      onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
+                      disabled={!selectedModel || importing}
+                    />
+                    <Button
+                      type="button"
+                      onClick={() => void importVehicles()}
+                      disabled={!selectedModel || !importFile || importing}
+                    >
+                      <Upload className="size-4" />
+                      {importing ? "Importing..." : "Upload & Import"}
+                    </Button>
+                  </div>
+                </div>
 
                 <div className="space-y-4">
                   {fields.map((field, index) => (

@@ -11,7 +11,7 @@ export async function GET(
   const supabaseAdmin = getSupabaseAdmin();
 
   const { data: vehicleStock, error: vehicleError } = await supabaseAdmin
-    .schema("ASB showrooms")
+    .schema("asb_showrooms")
     .from("dealer_vehicle_inventory")
     .select("*")
     .eq("dealer_code", dealerCode)
@@ -26,7 +26,7 @@ export async function GET(
   }
 
   const { data: spareStock, error: spareError } = await supabaseAdmin
-    .schema("ASB showrooms")
+    .schema("asb_showrooms")
     .from("dealer_spare_inventory")
     .select("*")
     .eq("dealer_code", dealerCode)

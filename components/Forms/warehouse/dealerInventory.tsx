@@ -3,8 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { RefreshCw, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { RefreshCw, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 
 import {
@@ -15,7 +14,6 @@ import {
 import {
   getDealers,
   createDealer,
-  generateDealerCode,
   type Dealer,
 } from "@/lib/dealers/asb-dealer";
 
@@ -24,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { AdminCredentialsModal } from "@/components/admin/admin-credentials-modal";
 
 type Status =
   | { type: "success"; message: string }
@@ -35,7 +34,11 @@ export default function DealerPage() {
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [status, setStatus] = useState<Status>(null);
-  const router = useRouter();
+  const [deleteDealer, setDeleteDealer] = useState<Dealer | null>(null);
+  const [adminEmail, setAdminEmail] = useState("");
+  const [adminPassword, setAdminPassword] = useState("");
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const {
     register,
@@ -78,10 +81,7 @@ export default function DealerPage() {
     setStatus(null);
 
     try {
-      const code = await generateDealerCode();
-
-      await createDealer({
-        dealer_code: code,
+      const result = await createDealer({
         business_name: data.business_name.trim(),
         owner_name: data.owner_name?.trim() || undefined,
         city: data.city.trim(),
@@ -92,7 +92,7 @@ export default function DealerPage() {
 
       setStatus({
         type: "success",
-        message: `Dealer ${code} created successfully`,
+        message: `Dealer ${result?.dealer?.dealer_code ?? ""} created successfully`,
       });
 
       reset();
@@ -104,6 +104,51 @@ export default function DealerPage() {
       });
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  function openDelete(dealer: Dealer) {
+    setDeleteDealer(dealer);
+    setAdminEmail("");
+    setAdminPassword("");
+    setDeleteError(null);
+  }
+
+  async function confirmDelete() {
+    if (!deleteDealer) return;
+
+    setDeleting(true);
+    setDeleteError(null);
+
+    try {
+      const res = await fetch("/api/admin/records", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          target: "dealer",
+          id: deleteDealer.dealer_code,
+          adminEmail,
+          adminPassword,
+        }),
+      });
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error ?? "Failed to delete dealer");
+      }
+
+      setDeleteDealer(null);
+      setStatus({
+        type: "success",
+        message: `Dealer ${deleteDealer.dealer_code} deleted`,
+      });
+      await loadDealers();
+    } catch (err) {
+      setDeleteError(
+        err instanceof Error ? err.message : "Failed to delete dealer"
+      );
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -271,14 +316,41 @@ export default function DealerPage() {
                     </Link>
                   </div>
 
-                  <Badge variant={d.is_active ? "default" : "secondary"}>
-                    {d.is_active ? "Active" : "Inactive"}
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={d.is_active ? "default" : "secondary"}>
+                      {d.is_active ? "Active" : "Inactive"}
+                    </Badge>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => openDelete(d)}
+                    >
+                      <Trash2 className="size-4" />
+                      Delete
+                    </Button>
+                  </div>
                 </div>
               ))
             )}
           </CardContent>
         </Card>
+
+        {deleteDealer && (
+          <AdminCredentialsModal
+            title="Delete Dealer"
+            description={`Confirm admin credentials to delete ${deleteDealer.business_name}. Related stock or sales may block deletion.`}
+            confirmLabel="Delete"
+            adminEmail={adminEmail}
+            adminPassword={adminPassword}
+            error={deleteError}
+            loading={deleting}
+            onEmailChange={setAdminEmail}
+            onPasswordChange={setAdminPassword}
+            onClose={() => setDeleteDealer(null)}
+            onConfirm={confirmDelete}
+          />
+        )}
 
       </div>
     </div>

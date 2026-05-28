@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+
+import { verifyAdminCredentials } from "@/lib/auth/verify-admin-credentials";
 
 export async function POST(req: Request) {
   try {
@@ -23,32 +24,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const supabase = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!
-    );
+    const verified = await verifyAdminCredentials(email, password);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error || !data.user) {
-      return NextResponse.json(
-        { error: "Invalid credentials" },
-        { status: 401 }
-      );
-    }
-
-    // Check that the user is actually an admin
-    const { data: profile, error: profileError } = await supabase
-      .schema("public")
-      .from("profiles")
-      .select("role")
-      .eq("id", data.user.id)
-      .single();
-
-    if (profileError || profile?.role !== "admin") {
+    if (!verified) {
       return NextResponse.json(
         { error: "Invalid credentials" },
         { status: 401 }
@@ -56,7 +34,7 @@ export async function POST(req: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (err) {
+  } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }
 }

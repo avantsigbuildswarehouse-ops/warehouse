@@ -15,13 +15,13 @@ export type Showroom = {
 /**
  * Generate next showroom code
  */
-function generateNextCode(last?: string) {
-  if (!last) return "ASB-SH-001";
+function generateNextCode(codes: string[]) {
+  const max = codes.reduce((highest, code) => {
+    const match = code.match(/^ASB-SH-(\d+)$/);
+    return match ? Math.max(highest, parseInt(match[1], 10)) : highest;
+  }, 0);
 
-  const match = last.match(/ASB-SH-(\d+)/);
-  const num = match ? parseInt(match[1], 10) + 1 : 1;
-
-  return `ASB-SH-${String(num).padStart(3, "0")}`;
+  return `ASB-SH-${String(max + 1).padStart(3, "0")}`;
 }
 
 /**
@@ -29,7 +29,7 @@ function generateNextCode(last?: string) {
  */
 export async function getShowrooms(): Promise<Showroom[]> {
   const { data, error } = await supabaseAdmin
-    .schema("ASB showrooms")
+    .schema("asb_showrooms")
     .from("asb_showrooms")
     .select("*")
     .order("created_at", { ascending: false })
@@ -44,33 +44,41 @@ export async function getShowrooms(): Promise<Showroom[]> {
  * Generate showroom code (DB based)
  */
 export async function generateShowroomCode(): Promise<string> {
-  const { data } = await supabaseAdmin
-    .schema("ASB showrooms")
+  const { data, error } = await supabaseAdmin
+    .schema("asb_showrooms")
     .from("asb_showrooms")
     .select("showroom_code")
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .single();
+    .order("showroom_code", { ascending: false });
 
-  return generateNextCode(data?.showroom_code);
+  if (error) throw new Error(error.message);
+
+  return generateNextCode((data ?? []).map((row) => row.showroom_code));
 }
 
 /**
  * Create showroom
  */
 export async function createShowroom(input: {
-  showroom_code: string;
+  showroom_code?: string;
   city: string;
   state: string;
   address: string;
   is_active: boolean;
 }) {
-  const { error } = await supabaseAdmin
-    .schema("ASB showrooms")
-    .from("asb_showrooms")
-    .insert(input);
+  let lastError: Error | null = null;
 
-  if (error) throw new Error(error.message);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    const showroom_code = await generateShowroomCode();
+    const { error } = await supabaseAdmin
+      .schema("asb_showrooms")
+      .from("asb_showrooms")
+      .insert({ ...input, showroom_code });
 
-  return true;
+    if (!error) return { showroom_code };
+
+    lastError = new Error(error.message);
+    if (error.code !== "23505") break;
+  }
+
+throw lastError ?? new Error("Failed to create showroom");
 }

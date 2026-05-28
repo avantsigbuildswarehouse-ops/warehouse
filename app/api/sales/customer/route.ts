@@ -47,7 +47,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing payment details" }, { status: 400 });
     }
 
-    const schema = "ASB showrooms";
+    const schema = "asb_showrooms";
     const vehicleTable = targetType === "dealer" ? "dealer_vehicle_inventory" : "showroom_vehicle_inventory";
     const spareTable = targetType === "dealer" ? "dealer_spare_inventory" : "showroom_spare_inventory";
     const codeField = targetType === "dealer" ? "dealer_code" : "showroom_code";

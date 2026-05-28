@@ -43,6 +43,10 @@ type GroupedRequest = {
   status: string;
   remarks?: string;
   requested_at: string;
+  dealer_code?: string;
+  dealer_name?: string;
+  showroom_code?: string;
+  showroom_name?: string;
   items: RequestItem[];
 };
 
@@ -156,7 +160,13 @@ export default function RequestStatus({
               <div className="space-y-1">
                 <h1 className="text-3xl font-semibold tracking-tight text-slate-950 dark:text-white">Request history</h1>
                 <p className="text-sm text-slate-600 dark:text-slate-400">
-                  All stock requests for <span className="font-semibold text-slate-900 dark:text-white">{targetCode}</span>
+                  All stock requests for{" "}
+                  <span className="font-semibold text-slate-900 dark:text-white">
+                    {targetCode}
+                    {requests.length > 0 && requests[0]?.[targetType === "dealer" ? "dealer_name" : "showroom_name"] && (
+                      <> ({requests[0]?.[targetType === "dealer" ? "dealer_name" : "showroom_name"]})</>
+                    )}
+                  </span>
                 </p>
               </div>
             </div>

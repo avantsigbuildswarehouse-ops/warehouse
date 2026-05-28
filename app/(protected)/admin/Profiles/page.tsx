@@ -6,17 +6,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, X, ShieldCheck, Loader2, CheckCircle2 } from "lucide-react";
+import { Pencil, X, ShieldCheck, Loader2, CheckCircle2, Trash2, UserPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import PaginationControls from "@/components/ui/pagination-controls";
+import type { PartnerCodeOption, ProfileRecord } from "@/types/admin";
 
-type Profile = {
-  id: string;
-  email: string;
-  role: string;
-  code: string | null;
-  created_at: string;
-};
+type Profile = ProfileRecord;
 
 const ROLES = [
   "admin",
@@ -53,10 +48,36 @@ export default function ProfilesPage() {
   const [passwordError, setPasswordError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [successId, setSuccessId] = useState<string | null>(null);
+  const [codeOptions, setCodeOptions] = useState<PartnerCodeOption[]>([]);
+  const [createEmail, setCreateEmail] = useState("");
+  const [createPassword, setCreatePassword] = useState("");
+  const [createRole, setCreateRole] = useState("dealer-admin");
+  const [createCode, setCreateCode] = useState("");
+  const [pendingAction, setPendingAction] = useState<"update" | "create" | "delete" | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     void fetchProfiles(currentPage);
   }, [currentPage]);
+
+  useEffect(() => {
+    async function loadCodeOptions() {
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        const token = session?.access_token ?? null;
+        const res = await fetch("/api/profiles/options", {
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+        });
+        const data = await res.json();
+        setCodeOptions([...(data.dealers ?? []), ...(data.showrooms ?? [])]);
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
+    void loadCodeOptions();
+  }, []);
 
   async function fetchProfiles(page: number = 1) {
     setLoading(true);
@@ -89,6 +110,12 @@ export default function ProfilesPage() {
     }
   }
 
+  async function getAccessToken() {
+    const supabase = createClient();
+    const { data: { session } } = await supabase.auth.getSession();
+    return session?.access_token ?? null;
+  }
+
   function goToPage(page: number) {
     if (page >= 1 && page <= totalPages) {
       setCurrentPage(page);
@@ -110,10 +137,107 @@ export default function ProfilesPage() {
   }
 
   function handleSubmitEdit() {
+    setPendingAction("update");
     setShowPasswordModal(true);
     setAdminEmail("");
     setAdminPassword("");
     setPasswordError(null);
+  }
+
+  function handleSubmitCreate() {
+    setPendingAction("create");
+    setShowPasswordModal(true);
+    setAdminEmail("");
+    setAdminPassword("");
+    setPasswordError(null);
+  }
+
+  function handleSubmitDelete(profile: Profile) {
+    setPendingAction("delete");
+    setDeletingId(profile.id);
+    setShowPasswordModal(true);
+    setAdminEmail("");
+    setAdminPassword("");
+    setPasswordError(null);
+  }
+
+  async function handleConfirmCreate() {
+    setSaving(true);
+    setPasswordError(null);
+
+    try {
+      const token = await getAccessToken();
+      const createRes = await fetch("/api/profiles", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          email: createEmail,
+          password: createPassword,
+          role: createRole,
+          code: createCode || null,
+          adminEmail,
+          adminPassword,
+        }),
+      });
+      const createData = await createRes.json();
+
+      if (!createRes.ok) {
+        setPasswordError(createData.error ?? "Profile creation failed.");
+        return;
+      }
+
+      setCreateEmail("");
+      setCreatePassword("");
+      setCreateRole("dealer-admin");
+      setCreateCode("");
+      setShowPasswordModal(false);
+      setPendingAction(null);
+      await fetchProfiles(currentPage);
+    } catch (err) {
+      console.error("Create profile error:", err);
+      setPasswordError("Something went wrong.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleConfirmDelete() {
+    if (!deletingId) return;
+
+    setSaving(true);
+    setPasswordError(null);
+
+    try {
+      const token = await getAccessToken();
+      const deleteRes = await fetch(`/api/profiles/${deletingId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ adminEmail, adminPassword }),
+      });
+      const deleteData = await deleteRes.json();
+
+      if (!deleteRes.ok) {
+        setPasswordError(deleteData.error ?? "Delete failed.");
+        return;
+      }
+
+      setProfiles((prev) => prev.filter((profile) => profile.id !== deletingId));
+      setDeletingId(null);
+      setShowPasswordModal(false);
+      setPendingAction(null);
+      await fetchProfiles(currentPage);
+    } catch (err) {
+      console.error("Delete profile error:", err);
+      setPasswordError("Something went wrong.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleConfirmUpdate() {
@@ -136,10 +260,19 @@ export default function ProfilesPage() {
       }
 
       setSaving(true);
+      const token = await getAccessToken();
       const updateRes = await fetch(`/api/profiles/${editingId}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role: editRole, code: editCode || null }),
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          role: editRole,
+          code: editCode || null,
+          adminEmail,
+          adminPassword,
+        }),
       });
 
       const updateData = await updateRes.json();
@@ -161,6 +294,7 @@ export default function ProfilesPage() {
       );
 
       setShowPasswordModal(false);
+      setPendingAction(null);
       setSuccessId(updatedId);
       setEditingId(null);
       setEditRole("");
@@ -174,6 +308,20 @@ export default function ProfilesPage() {
       setVerifying(false);
       setSaving(false);
     }
+  }
+
+  function confirmPendingAction() {
+    if (pendingAction === "create") {
+      void handleConfirmCreate();
+      return;
+    }
+
+    if (pendingAction === "delete") {
+      void handleConfirmDelete();
+      return;
+    }
+
+    void handleConfirmUpdate();
   }
 
   return (
@@ -196,6 +344,76 @@ export default function ProfilesPage() {
             </Badge>
           </div>
         </div>
+
+        <Card className="dark:bg-slate-900/60 dark:border-white/10">
+          <CardHeader>
+            <CardTitle className="dark:text-white">Create Profile</CardTitle>
+            <CardDescription className="dark:text-slate-400">
+              Add a Supabase Auth user without sending verification email.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+              <div className="space-y-1.5 md:col-span-2">
+                <Label>Email</Label>
+                <Input
+                  type="email"
+                  value={createEmail}
+                  onChange={(event) => setCreateEmail(event.target.value)}
+                  placeholder="user@gmail.com"
+                  className="dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Password</Label>
+                <Input
+                  type="password"
+                  value={createPassword}
+                  onChange={(event) => setCreatePassword(event.target.value)}
+                  placeholder="Minimum 6 characters"
+                  className="dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Role</Label>
+                <select
+                  value={createRole}
+                  onChange={(event) => setCreateRole(event.target.value)}
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition-colors dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
+                >
+                  {ROLES.map((role) => (
+                    <option key={role} value={role}>
+                      {role}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Dealer / Showroom Code</Label>
+                <select
+                  value={createCode}
+                  onChange={(event) => setCreateCode(event.target.value)}
+                  className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition-colors dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
+                >
+                  <option value="">No code</option>
+                  {codeOptions.map((option) => (
+                    <option key={`${option.type}-${option.code}`} value={option.code}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <Button
+              className="mt-4"
+              onClick={handleSubmitCreate}
+              disabled={!createEmail || !createPassword || !createRole}
+            >
+              <UserPlus className="w-4 h-4 mr-2" />
+              Create Profile
+            </Button>
+          </CardContent>
+        </Card>
 
         {/* TABLE */}
         <Card className="dark:bg-slate-900/60 dark:border-white/10">
@@ -265,14 +483,23 @@ export default function ProfilesPage() {
                                 <X className="w-4 h-4 mr-1" /> Cancel
                               </Button>
                             ) : (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openEdit(profile)}
-                                className="dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
-                              >
-                                <Pencil className="w-4 h-4 mr-1" /> Update
-                              </Button>
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openEdit(profile)}
+                                  className="dark:border-white/10 dark:text-slate-300 dark:hover:bg-slate-800"
+                                >
+                                  <Pencil className="w-4 h-4 mr-1" /> Update
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleSubmitDelete(profile)}
+                                >
+                                  <Trash2 className="w-4 h-4 mr-1" /> Delete
+                                </Button>
+                              </div>
                             )}
                           </td>
                         </tr>
@@ -302,11 +529,22 @@ export default function ProfilesPage() {
                                     Code
                                   </Label>
                                   <Input
+                                    list="profile-code-options"
                                     value={editCode}
                                     onChange={(e) => setEditCode(e.target.value)}
                                     placeholder="e.g. ASB-DL-001"
                                     className="h-10 rounded-xl dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
                                   />
+                                  <datalist id="profile-code-options">
+                                    {codeOptions.map((option) => (
+                                      <option
+                                        key={`${option.type}-${option.code}`}
+                                        value={option.code}
+                                      >
+                                        {option.label}
+                                      </option>
+                                    ))}
+                                  </datalist>
                                 </div>
 
                                 <Button onClick={handleSubmitEdit} className="h-10">
@@ -380,7 +618,7 @@ export default function ProfilesPage() {
                     onChange={(e) => setAdminPassword(e.target.value)}
                     className="dark:border-white/10 dark:bg-slate-950/60 dark:text-white"
                     onKeyDown={(e) => {
-                      if (e.key === "Enter") handleConfirmUpdate();
+                      if (e.key === "Enter") confirmPendingAction();
                     }}
                   />
                 </div>
@@ -401,7 +639,7 @@ export default function ProfilesPage() {
                   </Button>
                   <Button
                     className="flex-1"
-                    onClick={handleConfirmUpdate}
+                    onClick={confirmPendingAction}
                     disabled={verifying || saving || !adminEmail || !adminPassword}
                   >
                     {verifying || saving ? (
@@ -412,7 +650,11 @@ export default function ProfilesPage() {
                     ) : (
                       <>
                         <ShieldCheck className="w-4 h-4 mr-2" />
-                        Confirm & Save
+                        {pendingAction === "create"
+                          ? "Confirm & Create"
+                          : pendingAction === "delete"
+                            ? "Confirm & Delete"
+                            : "Confirm & Save"}
                       </>
                     )}
                   </Button>

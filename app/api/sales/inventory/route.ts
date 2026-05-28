@@ -18,12 +18,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Invalid targetType/targetCode" }, { status: 400 });
   }
 
-  // Enforce: non-admin can only access their own code
-  if (auth.identity.role !== "admin" && auth.identity.code !== targetCode) {
+  // Enforce: admins can access any code, non-admins can only access their own code
+  const isAdmin = auth.identity.role === "admin";
+  const isOwnCode = auth.identity.code !== null && auth.identity.code === targetCode;
+  if (!isAdmin && !isOwnCode) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
-  const schema = "ASB showrooms";
+  const schema = "asb_showrooms";
   const vehicleTable = targetType === "dealer" ? "dealer_vehicle_inventory" : "showroom_vehicle_inventory";
   const spareTable = targetType === "dealer" ? "dealer_spare_inventory" : "showroom_spare_inventory";
   const codeField = targetType === "dealer" ? "dealer_code" : "showroom_code";
@@ -56,4 +58,3 @@ export async function GET(req: Request) {
     spares: spares.data ?? [],
   });
 }
-

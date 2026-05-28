@@ -20,7 +20,7 @@ export async function requireSalesRoute() {
     .from("profiles")
     .select("role, code")
     .eq("id", userData.user.id)
-    .single();
+    .maybeSingle();
 
   if (profileError || !profile?.role) {
     return { error: NextResponse.json({ error: "Unauthorized" }, { status: 401 }) };
@@ -33,4 +33,3 @@ export async function requireSalesRoute() {
 
   return { identity: { role, code: (profile.code as string | null) ?? null } satisfies SalesIdentity };
 }
-

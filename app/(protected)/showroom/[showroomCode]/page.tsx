@@ -65,7 +65,7 @@ const supabaseAdmin = getSupabaseAdmin();
 async function getShowroomStock(showroomCode: string): Promise<StockData> {
   try {
     const { data: vehicles, error: vehicleError } = await supabaseAdmin
-      .schema("ASB showrooms")
+      .schema("asb_showrooms")
       .from("showroom_vehicle_inventory")
       .select("*")
       .is("sold_at", null)
@@ -74,7 +74,7 @@ async function getShowroomStock(showroomCode: string): Promise<StockData> {
     if (vehicleError) throw vehicleError;
 
     const { data: spares, error: spareError } = await supabaseAdmin
-      .schema("ASB showrooms")
+      .schema("asb_showrooms")
       .from("showroom_spare_inventory")
       .select("*")
       .is("sold_at", null)
@@ -83,7 +83,7 @@ async function getShowroomStock(showroomCode: string): Promise<StockData> {
     if (spareError) throw spareError;
 
     const { data: sold_vehicles, error: sold_vehicleError } = await supabaseAdmin
-      .schema("ASB showrooms")
+      .schema("asb_showrooms")
       .from("showroom_vehicle_inventory")
       .select("*")
       .not("sold_at", "is", null) // not null
@@ -92,7 +92,7 @@ async function getShowroomStock(showroomCode: string): Promise<StockData> {
     if (sold_vehicleError) throw sold_vehicleError;
 
     const { data: sold_spares, error: sold_spareError } = await supabaseAdmin
-      .schema("ASB showrooms")
+      .schema("asb_showrooms")
       .from("showroom_spare_inventory")
       .select("*")
       .not("sold_at", "is", null) // not null

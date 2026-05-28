@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Missing engine/chassis/soldAt" }, { status: 400 });
   }
 
-  const schema = "ASB showrooms";
+  const schema = "asb_showrooms";
 
   const [dealerMatch, showroomMatch] = await Promise.all([
     supabaseAdmin

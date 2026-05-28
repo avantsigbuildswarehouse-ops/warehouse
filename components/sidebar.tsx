@@ -20,6 +20,7 @@ import {
   ClipboardList,
   Receipt,
   FileText,
+  CircleDollarSign,
 } from "lucide-react";
 
 import LogoutButton from "./logout-button";
@@ -49,6 +50,7 @@ function getNavItems(role: string, code: string): NavItem[] {
       { href: "/admin/Profiles", label: "Profiles", icon: Users },
       { href: "/admin/Inventory", label: "Vehicle Inventory", icon: Archive },
       { href: "/admin/Spares", label: "Spare Inventory", icon: Wrench },
+      { href: "/admin/PriceManagement", label: "Prices & Codes", icon: CircleDollarSign },
       { href: "/admin/Showroom", label: "Showrooms", icon: Building },
       { href: "/admin/Dealers", label: "Dealers", icon: Building2 },
       { href: "/admin/IssueStock", label: "Issue Inventory", icon: PackageOpen },
@@ -69,6 +71,15 @@ function getNavItems(role: string, code: string): NavItem[] {
     ];
   }
 
+  if (role === "dealer-finance") {
+    return [
+      { href: `/dealer/${code}/Customer`, label: "Customer Invoice", icon: Users },
+      { href: `/dealer/${code}/Company`, label: "Company Invoice", icon: Building},
+      { href: `/dealer/${code}/Billing`, label: "Billing", icon: Receipt},
+      { href: `/dealer/${code}/Quotations`, label: "Quotations", icon: FileText},
+    ];
+  }
+
     if (role === "showroom-admin") {
     return [
       { href: `/showroom/${code}`, label: "Showroom Home", icon: Shield, exact: true },
@@ -79,6 +90,15 @@ function getNavItems(role: string, code: string): NavItem[] {
       { href: `/showroom/${code}/Billing`, label: "Billing", icon: Receipt},
       { href: `/showroom/${code}/Quotations`, label: "Quotations", icon: FileText},
       { href: `/showroom/${code}/Analytics`, label: "Analytics", icon: ChartNoAxesCombined}
+    ];
+  }
+
+  if (role === "showroom-finance") {
+    return [
+      { href: `/showroom/${code}/Customer`, label: "Customer Invoice", icon: Users },
+      { href: `/showroom/${code}/Company`, label: "Company Invoice", icon: Building},
+      { href: `/showroom/${code}/Billing`, label: "Billing", icon: Receipt},
+      { href: `/showroom/${code}/Quotations`, label: "Quotations", icon: FileText},
     ];
   }
 

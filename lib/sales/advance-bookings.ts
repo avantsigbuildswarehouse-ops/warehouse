@@ -81,7 +81,7 @@ function toNumber(value: number | string | null | undefined) {
 
 function getInventoryTable(targetType: TargetType) {
   return {
-    schema: "ASB showrooms",
+    schema: "asb_showrooms",
     vehicleTable: targetType === "dealer" ? "dealer_vehicle_inventory" : "showroom_vehicle_inventory",
     codeField: targetType === "dealer" ? "dealer_code" : "showroom_code",
   };

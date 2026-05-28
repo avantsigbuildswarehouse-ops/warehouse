@@ -16,6 +16,7 @@ type GroupedRequest = {
   id: string;
   reference_no: string;
   dealer_code: string;
+  dealer_name?: string;
   item_type: string;
   items_count: number;
   total_value: number;
@@ -40,8 +41,14 @@ export async function GET(req: Request) {
 
     console.log("Fetching requests for dealer:", dealerCode);
 
-    // Fetch both tables in parallel using supabaseAdmin
-    const [vehicleResult, spareResult] = await Promise.all([
+    // Fetch dealer info and requests in parallel
+    const [dealerResult, vehicleResult, spareResult] = await Promise.all([
+      supabaseAdmin
+        .schema("asb_showrooms")
+        .from("dealers")
+        .select("dealer_code, business_name")
+        .eq("dealer_code", dealerCode)
+        .single(),
       supabaseAdmin
         .from("dealer_vehicle_requests")
         .select("*")
@@ -72,6 +79,7 @@ export async function GET(req: Request) {
 
     const vehicleRequests = vehicleResult.data || [];
     const spareRequests = spareResult.data || [];
+    const dealerName = dealerResult.data?.business_name;
 
     console.log(`Found ${vehicleRequests.length} vehicle requests and ${spareRequests.length} spare requests`);
 
@@ -81,8 +89,8 @@ export async function GET(req: Request) {
     }
 
     // Group by reference_no
-    const groupedVehicles = groupByReference(vehicleRequests, "Bike");
-    const groupedSpares = groupByReference(spareRequests, "Spare");
+    const groupedVehicles = groupByReference(vehicleRequests, "Bike", dealerName);
+    const groupedSpares = groupByReference(spareRequests, "Spare", dealerName);
 
     const allRequests = [...groupedVehicles, ...groupedSpares]
       .sort((a, b) => new Date(b.requested_at).getTime() - new Date(a.requested_at).getTime());
@@ -100,7 +108,7 @@ export async function GET(req: Request) {
   }
 }
 
-function groupByReference(items: RequestRow[], itemType: string) {
+function groupByReference(items: RequestRow[], itemType: string, dealerName?: string) {
   const groups = new Map<string, GroupedRequest>();
 
   items.forEach((item) => {
@@ -110,6 +118,7 @@ function groupByReference(items: RequestRow[], itemType: string) {
         id: groupRef,
         reference_no: groupRef,
         dealer_code: item.dealer_code,
+        dealer_name: dealerName,
         item_type: itemType,
         items_count: 0,
         total_value: 0,

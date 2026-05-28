@@ -69,7 +69,7 @@ export default function LoginPage() {
       .from("profiles")
       .select("role, code")
       .eq("id", user.id)
-      .single();
+      .maybeSingle();
 
     if (profileError || !profile) {
       setLoading(false);
@@ -81,7 +81,9 @@ export default function LoginPage() {
 
     if (profile.role === "admin") router.replace("/admin");
     else if (profile.role === "dealer-admin") router.replace(`/dealer/${profile.code}`);
+    else if (profile.role === "dealer-finance") router.replace(`/dealer/${profile.code}/Billing`);
     else if (profile.role === "showroom-admin") router.replace(`/showroom/${profile.code}`);
+    else if (profile.role === "showroom-finance") router.replace(`/showroom/${profile.code}/Billing`);
     else if (profile.role === "frontdesk") router.replace("/frontdesk");
     else router.replace("/dashboard");
   }

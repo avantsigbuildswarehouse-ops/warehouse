@@ -12,7 +12,7 @@ export async function GET(
   const limit = parseInt(searchParams.get('limit') || '1000', 10);
 
   const { data: vehicleStock, error: vehicleError } = await supabaseAdmin
-    .schema("ASB showrooms")
+    .schema("asb_showrooms")
     .from("showroom_vehicle_inventory")
     .select("*")
     .eq("showroom_code", showroomCode)
@@ -27,7 +27,7 @@ export async function GET(
   }
 
   const { data: spareStock, error: spareError } = await supabaseAdmin
-    .schema("ASB showrooms")
+    .schema("asb_showrooms")
     .from("showroom_spare_inventory")
     .select("*")
     .eq("showroom_code", showroomCode)

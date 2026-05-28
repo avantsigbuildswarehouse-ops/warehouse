@@ -5,8 +5,8 @@ export const spareSchema = z.object({
 });
 
 export const vehicleSpareSchema = z.object({
-  modelCode: z.string().min(1),
-  spareCode: z.string().min(1),
+  modelCode: z.string().min(1, "Please select a model"),
+  spareCode: z.string().optional(),
   spares: z.array(spareSchema).min(1),
 });
 
