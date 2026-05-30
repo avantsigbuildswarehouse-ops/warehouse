@@ -7,6 +7,9 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 const supabaseAdmin = getSupabaseAdmin();
 
 type BikePayload = {
+  make: string;
+  engineCapacity: string;
+  bikeCategory: string;
   engineNumber: string;
   chassisNumber: string;
   color: string;
@@ -72,6 +75,9 @@ export async function POST(req: Request) {
   // insert vehicles
   const rows = (bikes as BikePayload[]).map((bike) => ({
     model_code,
+    make: bike.make,
+    engine_capacity: bike.engineCapacity,
+    bike_category: bike.bikeCategory,
     engine_number: bike.engineNumber,
     chassis_number: bike.chassisNumber,
     color: bike.color,

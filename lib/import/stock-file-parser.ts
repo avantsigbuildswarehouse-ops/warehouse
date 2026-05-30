@@ -6,6 +6,9 @@ type ParsedTable = {
 };
 
 export type ParsedVehicleRow = {
+  make: string;
+  engineCapacity: string;
+  bikeCategory: string;
   sourceModel: string;
   engineNumber: string;
   chassisNumber: string;
@@ -168,14 +171,39 @@ export async function parseStockFile(file: File): Promise<ParsedTable> {
 
 export function toVehicleRows(table: ParsedTable): ParsedVehicleRow[] {
   return table.rows
-    .map((row) => ({
-      sourceModel: getValue(row, ["Model", "Model Name", "Model Code"]),
-      engineNumber: getValue(row, ["Engine Number", "Engine", "Engine No"]),
-      chassisNumber: getValue(row, ["Chasis Number", "Chassis Number", "Chassis", "Chasis No"]),
-      color: getValue(row, ["Color", "Colour"]),
-      yom: getValue(row, ["YOM", "Year", "Year of Manufacture"]),
-      version: getValue(row, ["Description", "Version", "Variant"]),
-    }))
+    .map((row) => {
+      // Try multiple variations of chassis number headers
+      let chassisNumber = getValue(row, ["Chasis Number", "Chassis Number", "Chassis", "Chasis no"]);
+      
+      // If chassis number is empty, try to find it by index or other variations
+      if (!chassisNumber) {
+        // Look for any column that contains "chassis" or "chasis" in the header
+        const chassisKey = Object.keys(row).find(key => 
+          key.toLowerCase().includes('chassis') || key.toLowerCase().includes('chasis')
+        );
+        if (chassisKey) chassisNumber = row[chassisKey];
+      }
+      
+      let engineNumber = getValue(row, ["Engine Number", "Engine", "Engine no"]);
+      if (!engineNumber) {
+        const engineKey = Object.keys(row).find(key => 
+          key.toLowerCase().includes('engine')
+        );
+        if (engineKey) engineNumber = row[engineKey];
+      }
+      
+      return {
+        make: getValue(row, ["Make", "Manufacture", "MadeBy", "Company"]),
+        engineCapacity: getValue(row, ["Engine capacity", "CC", "Engine CC"]),
+        bikeCategory: getValue(row, ["Bike Category", "Category", "Type"]),
+        sourceModel: getValue(row, ["Model", "Model Name", "Model Code"]),
+        engineNumber: engineNumber,
+        chassisNumber: chassisNumber,
+        color: getValue(row, ["Color", "Colour"]),
+        yom: getValue(row, ["YOM", "Year", "Year of Manufacture"]),
+        version: getValue(row, ["Description", "Version", "Variant"]),
+      };
+    })
     .filter((row) => row.sourceModel || row.engineNumber || row.chassisNumber);
 }
 

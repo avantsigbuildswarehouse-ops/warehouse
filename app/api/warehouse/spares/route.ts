@@ -164,13 +164,24 @@ export async function DELETE(req: Request) {
 
   const { error } = await supabaseAdmin
     .schema("warehouse")
-    .from("vehicle_spare_codes")
+    .from("vehicle_spare_inventory")
     .delete()
     .eq("model_code", modelCode)
     .eq("spare_code", spareCode);
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  const { error: codeError } = await supabaseAdmin
+    .schema("warehouse")
+    .from("vehicle_spare_codes")
+    .delete()
+    .eq("model_code", modelCode)
+    .eq("spare_code", spareCode);
+
+  if (codeError) {
+    return NextResponse.json({ error: codeError.message }, { status: 500 });
   }
 
   await syncSpareCodeQuantities([{ modelCode, spareCode }]).catch(() => undefined);

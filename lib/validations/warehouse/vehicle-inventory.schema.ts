@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 export const bikeSchema = z.object({
+  make: z.string().min(1, "Make required"),
+  engineCapacity: z.string().min(1, "Engine capacity required"),
+  bikeCategory: z.string().min(1, "Bike category required"),
   engineNumber: z.string().min(1, "Engine required"),
   chassisNumber: z.string().min(1, "Chassis required"),
   color: z.string().min(1, "Color required"),

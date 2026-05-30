@@ -33,6 +33,9 @@ type VehicleModel = {
 };
 
 type InventoryItem = {
+  make: string;
+  engine_capacity: string;
+  bike_category: string;
   model_code: string;
   model_name: string;
   model_quantity: number;
@@ -67,6 +70,9 @@ const blankBike = {
   color: "",
   yom: "",
   version: "",
+  make: "",
+  engineCapacity: "",
+  bikeCategory: "",
 };
 
 function formatNumber(value: number) {
@@ -496,6 +502,48 @@ export default function VehicleInventoryForm() {
 
                       <div className="grid gap-4 md:grid-cols-2">
                         <div className="space-y-2">
+                          <Label htmlFor={`make-${index}`}>Make</Label>
+                          <Input
+                            id={`make-${index}`}
+                            {...register(`bikes.${index}.make`)}
+                            placeholder="e.g., KAMAX, HONDA"
+                          />
+                          {errors.bikes?.[index]?.make ? (
+                            <p className="text-sm text-red-600">
+                              {errors.bikes[index]?.make?.message}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`engineCapacity-${index}`}>Engine Capacity</Label>
+                          <Input
+                            id={`engineCapacity-${index}`}
+                            {...register(`bikes.${index}.engineCapacity`)}
+                            placeholder="e.g., 149, 200"
+                          />
+                          {errors.bikes?.[index]?.engineCapacity ? (
+                            <p className="text-sm text-red-600">
+                              {errors.bikes[index]?.engineCapacity?.message}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor={`bikeCategory-${index}`}>Bike Category</Label>
+                          <Input
+                            id={`bikeCategory-${index}`}
+                            {...register(`bikes.${index}.bikeCategory`)}
+                            placeholder="e.g., Trail, Sport, Cruiser"
+                          />
+                          {errors.bikes?.[index]?.bikeCategory ? (
+                            <p className="text-sm text-red-600">
+                              {errors.bikes[index]?.bikeCategory?.message}
+                            </p>
+                          ) : null}
+                        </div>
+
+                        <div className="space-y-2">
                           <Label htmlFor={`engine-${index}`}>Engine number</Label>
                           <Input
                             id={`engine-${index}`}
@@ -678,6 +726,9 @@ export default function VehicleInventoryForm() {
                     <thead>
                       <tr className="text-left text-slate-500 dark:text-slate-400">
                         <th className="px-3 py-2 font-medium">Model</th>
+                        <th className="px-3 py-2 font-medium">Make</th>
+                        <th className="px-3 py-2 font-medium">Engine CC</th>
+                        <th className="px-3 py-2 font-medium">Category</th>
                         <th className="px-3 py-2 font-medium">Engine</th>
                         <th className="px-3 py-2 font-medium">Chassis</th>
                         <th className="px-3 py-2 font-medium">Color</th>
@@ -701,11 +752,14 @@ export default function VehicleInventoryForm() {
                               {item.model_code}
                             </p>
                           </td>
+                          <td className="px-3 py-3">{item.make || "-"}</td>
+                          <td className="px-3 py-3">{item.engine_capacity || "-"}</td>
+                          <td className="px-3 py-3">{item.bike_category || "-"}</td>
                           <td className="px-3 py-3">{item.engine_number}</td>
                           <td className="px-3 py-3">{item.chassis_number}</td>
-                          <td className="px-3 py-3">{item.color}</td>
-                          <td className="px-3 py-3">{item.yom}</td>
-                          <td className="px-3 py-3">{item.version}</td>
+                          <td className="px-3 py-3">{item.color || "-"}</td>
+                          <td className="px-3 py-3">{item.yom || "-"}</td>
+                          <td className="px-3 py-3">{item.version || "-"}</td>
                           <td className="px-3 py-3">{item.status}</td>
                           <td className="rounded-r-2xl px-3 py-3 font-medium text-slate-900 dark:text-white">
                             {formatNumber(item.price)}

@@ -5,6 +5,9 @@ import { getSupabaseAdmin } from "@/lib/supabase/admin";
 const supabaseAdmin = getSupabaseAdmin();
 
 type VehicleInventoryRow = {
+  make: string;
+  engine_capacity: string;
+  bike_category: string;
   model_code: string;
   engine_number: string;
   chassis_number: string;
@@ -64,7 +67,7 @@ export async function getVehicleInventoryDetails() {
     .schema("warehouse")
     .from("vehicle_inventory")
     .select(
-      "model_code, engine_number, chassis_number, color, yom, version, status, price"
+      "make, engine_capacity, bike_category, model_code, engine_number, chassis_number, color, yom, version, status, price"
     )
     .order("model_code")
     .order("engine_number");
