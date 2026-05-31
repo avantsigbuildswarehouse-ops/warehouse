@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import PaginationControls from "@/components/ui/pagination-controls";
 
 type VehicleModel = {
   model_code: string;
@@ -30,31 +29,6 @@ type VehicleModel = {
   price: number | string | null;
   arrived_quantity: number | null;
   warehouse_quantity: number | null;
-};
-
-type InventoryItem = {
-  make: string;
-  engine_capacity: string;
-  bike_category: string;
-  model_code: string;
-  model_name: string;
-  model_quantity: number;
-  engine_number: string;
-  chassis_number: string;
-  color: string;
-  yom: string;
-  version: string;
-  status: string;
-  price: number;
-};
-
-type InventoryResponse = {
-  summary: {
-    totalUnits: number;
-    totalModels: number;
-    totalValue: number;
-  };
-  items: InventoryItem[];
 };
 
 type StatusState =
@@ -83,20 +57,12 @@ function formatNumber(value: number) {
 
 export default function VehicleInventoryForm() {
   const [models, setModels] = useState<VehicleModel[]>([]);
-  const [inventory, setInventory] = useState<InventoryResponse>({
-    summary: { totalUnits: 0, totalModels: 0, totalValue: 0 },
-    items: [],
-  });
   const [open, setOpen] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
-  const [loadingInventory, setLoadingInventory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
   const [status, setStatus] = useState<StatusState>(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const pageSize = 15;
 
   const {
     register,
@@ -144,36 +110,8 @@ export default function VehicleInventoryForm() {
     }
   }
 
-  async function loadInventory() {
-    setLoadingInventory(true);
-
-    try {
-      const res = await fetch("/api/warehouse/inventory");
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to load inventory");
-      }
-
-      setInventory(
-        data ?? {
-          summary: { totalUnits: 0, totalModels: 0, totalValue: 0 },
-          items: [],
-        }
-      );
-    } catch (error) {
-      setStatus({
-        tone: "error",
-        message:
-          error instanceof Error ? error.message : "Failed to load inventory",
-      });
-    } finally {
-      setLoadingInventory(false);
-    }
-  }
-
   useEffect(() => {
-    void Promise.all([loadModels(), loadInventory()]);
+    void loadModels();
   }, []);
 
   async function onSubmit(data: VehicleInventoryFormValues) {
@@ -203,7 +141,7 @@ export default function VehicleInventoryForm() {
         modelCode: data.modelCode,
         bikes: [blankBike],
       });
-      await Promise.all([loadModels(), loadInventory()]);
+      await loadModels();
     } catch (error) {
       setStatus({
         tone: "error",
@@ -242,7 +180,7 @@ export default function VehicleInventoryForm() {
         message: `Imported ${result.added} bike(s). Skipped ${result.skipped || 0} unmatched/invalid row(s).`,
       });
       setImportFile(null);
-      await Promise.all([loadModels(), loadInventory()]);
+      await loadModels();
     } catch (error) {
       setStatus({
         tone: "error",
@@ -258,26 +196,19 @@ export default function VehicleInventoryForm() {
     [models, selectedModel]
   );
 
-  const visibleInventory = useMemo(() => {
-    if (!selectedModel) return inventory.items;
-    return inventory.items.filter((item) => item.model_code === selectedModel);
-  }, [inventory.items, selectedModel]);
-
-  const paginatedInventory = useMemo(() => {
-    const offset = (currentPage - 1) * pageSize;
-    return visibleInventory.slice(offset, offset + pageSize);
-  }, [visibleInventory, currentPage]);
-
-  useEffect(() => {
-    setTotalPages(Math.ceil(visibleInventory.length / pageSize));
-    setCurrentPage(1);
-  }, [visibleInventory]);
-
-  function goToPage(page: number) {
-    if (page >= 1 && page <= totalPages) {
-      setCurrentPage(page);
-    }
-  }
+  // Calculate summary stats from models
+  const summaryStats = useMemo(() => {
+    const totalArrived = models.reduce((sum, m) => sum + (Number(m.arrived_quantity) || 0), 0);
+    const totalWarehouse = models.reduce((sum, m) => sum + (Number(m.warehouse_quantity) || 0), 0);
+    const totalValue = models.reduce((sum, m) => sum + (Number(m.price) || 0) * (Number(m.warehouse_quantity) || 0), 0);
+    
+    return {
+      totalArrived,
+      totalWarehouse,
+      totalModels: models.length,
+      totalValue,
+    };
+  }, [models]);
 
   return (
     <div className="min-h-full bg-slate-50 transition-colors dark:bg-[#080B14]">
@@ -292,16 +223,15 @@ export default function VehicleInventoryForm() {
                 Vehicle inventory
               </h1>
               <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-400">
-                Add incoming bikes, review the full stock list, and keep model
-                quantities in sync from one place.
+                Add incoming bikes to inventory. View all inventory data in the Inventory Data page.
               </p>
             </div>
 
             <Button
               type="button"
               variant="outline"
-              onClick={() => void Promise.all([loadModels(), loadInventory()])}
-              disabled={loadingModels || loadingInventory}
+              onClick={() => void loadModels()}
+              disabled={loadingModels}
             >
               <RefreshCw className="size-4" />
               Refresh data
@@ -317,7 +247,7 @@ export default function VehicleInventoryForm() {
                 <div className="rounded-xl bg-sky-100 p-2.5 dark:bg-sky-500/20">
                   <Bike className="size-6 text-sky-600 dark:text-sky-400" />
                 </div>
-                {formatNumber(models.reduce((sum, m) => sum + (Number(m.arrived_quantity) || 0), 0))}
+                {formatNumber(summaryStats.totalArrived)}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -329,7 +259,7 @@ export default function VehicleInventoryForm() {
                 <div className="rounded-xl bg-green-100 p-2.5 dark:bg-green-500/20">
                   <PackageOpen className="size-6 text-green-600 dark:text-green-400" />
                 </div>
-                {formatNumber(models.reduce((sum, m) => sum + (Number(m.warehouse_quantity) || 0), 0))}
+                {formatNumber(summaryStats.totalWarehouse)}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -341,19 +271,19 @@ export default function VehicleInventoryForm() {
                 <div className="rounded-xl bg-teal-100 p-2.5 dark:bg-teal-500/20">
                   <Boxes className="size-6 text-teal-600 dark:text-teal-400" />
                 </div>
-                {formatNumber(inventory.summary.totalModels)}
+                {formatNumber(summaryStats.totalModels)}
               </CardTitle>
             </CardHeader>
           </Card>
 
           <Card className="border-indigo-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(238,242,255,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
             <CardHeader className="p-6">
-              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Listed inventory value</CardDescription>
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Total inventory value</CardDescription>
               <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
                 <div className="rounded-xl bg-indigo-100 p-2.5 dark:bg-indigo-500/20">
                   <CircleDollarSign className="size-6 text-indigo-600 dark:text-indigo-400" />
                 </div>
-                {formatNumber(inventory.summary.totalValue)}
+                {formatNumber(summaryStats.totalValue)}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -699,86 +629,6 @@ export default function VehicleInventoryForm() {
             </CardContent>
           </Card>
         </div>
-
-        <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
-          <CardHeader>
-            <CardTitle className="dark:text-white">Bike details in stock</CardTitle>
-            <CardDescription className="dark:text-slate-400">
-              {selectedModelData
-                ? `Showing bikes for ${selectedModelData.model_name}.`
-                : "Showing all bikes currently stored in inventory."}
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            {loadingInventory ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                Loading inventory...
-              </div>
-            ) : visibleInventory.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                No bikes found for the current selection.
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <div className="overflow-x-auto">
-                  <table className="min-w-full border-separate border-spacing-y-2 text-sm">
-                    <thead>
-                      <tr className="text-left text-slate-500 dark:text-slate-400">
-                        <th className="px-3 py-2 font-medium">Model</th>
-                        <th className="px-3 py-2 font-medium">Make</th>
-                        <th className="px-3 py-2 font-medium">Engine CC</th>
-                        <th className="px-3 py-2 font-medium">Category</th>
-                        <th className="px-3 py-2 font-medium">Engine</th>
-                        <th className="px-3 py-2 font-medium">Chassis</th>
-                        <th className="px-3 py-2 font-medium">Color</th>
-                        <th className="px-3 py-2 font-medium">YOM</th>
-                        <th className="px-3 py-2 font-medium">Description</th>
-                        <th className="px-3 py-2 font-medium">Status</th>
-                        <th className="px-3 py-2 font-medium">Price</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {paginatedInventory.map((item) => (
-                        <tr
-                          key={`${item.engine_number}-${item.chassis_number}`}
-                          className="rounded-2xl bg-slate-50 text-slate-700 transition hover:bg-slate-100 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:bg-slate-800/70"
-                        >
-                          <td className="rounded-l-2xl px-3 py-3 align-top">
-                            <p className="font-semibold text-slate-900 dark:text-white">
-                              {item.model_name}
-                            </p>
-                            <p className="text-xs text-slate-500 dark:text-slate-400">
-                              {item.model_code}
-                            </p>
-                          </td>
-                          <td className="px-3 py-3">{item.make || "-"}</td>
-                          <td className="px-3 py-3">{item.engine_capacity || "-"}</td>
-                          <td className="px-3 py-3">{item.bike_category || "-"}</td>
-                          <td className="px-3 py-3">{item.engine_number}</td>
-                          <td className="px-3 py-3">{item.chassis_number}</td>
-                          <td className="px-3 py-3">{item.color || "-"}</td>
-                          <td className="px-3 py-3">{item.yom || "-"}</td>
-                          <td className="px-3 py-3">{item.version || "-"}</td>
-                          <td className="px-3 py-3">{item.status}</td>
-                          <td className="rounded-r-2xl px-3 py-3 font-medium text-slate-900 dark:text-white">
-                            {formatNumber(item.price)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                <PaginationControls
-                  currentPage={currentPage}
-                  totalPages={totalPages}
-                  onPageChange={goToPage}
-                  totalItemsLabel={`${visibleInventory.length} bikes`}
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       <ModelDialog

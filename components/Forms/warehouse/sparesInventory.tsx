@@ -40,27 +40,6 @@ type SpareCode = {
   warehouse_quantity: number | null;
 };
 
-type SpareInventoryItem = {
-  model_code: string;
-  model_name: string;
-  spare_code: string;
-  spare_name: string;
-  serial_number: string;
-  status: string;
-  price: number;
-  warehouse_quantity: number;
-  arrived_quantity: number;
-};
-
-type SpareInventoryResponse = {
-  summary: {
-    totalUnits: number;
-    totalSpareTypes: number;
-    totalValue: number;
-  };
-  items: SpareInventoryItem[];
-};
-
 type StatusState =
   | {
       tone: "success" | "error";
@@ -80,14 +59,9 @@ export default function SparesInventory() {
   const [models, setModels] = useState<VehicleModel[]>([]);
   const [spares, setSpares] = useState<SpareCode[]>([]);
   const [allSpares, setAllSpares] = useState<SpareCode[]>([]);
-  const [inventory, setInventory] = useState<SpareInventoryResponse>({
-    summary: { totalUnits: 0, totalSpareTypes: 0, totalValue: 0 },
-    items: [],
-  });
   const [open, setOpen] = useState(false);
   const [loadingModels, setLoadingModels] = useState(false);
   const [loadingSpares, setLoadingSpares] = useState(false);
-  const [loadingInventory, setLoadingInventory] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [importing, setImporting] = useState(false);
   const [importFile, setImportFile] = useState<File | null>(null);
@@ -142,35 +116,6 @@ export default function SparesInventory() {
     }
   }
 
-  async function loadInventory() {
-    setLoadingInventory(true);
-
-    try {
-      const res = await fetch("/api/warehouse/spare-inventory");
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Failed to load spare inventory");
-      }
-
-      setInventory(
-        data && Array.isArray(data.items)
-          ? data
-          : { summary: { totalUnits: 0, totalSpareTypes: 0, totalValue: 0 }, items: [] }
-      );
-    } catch (error) {
-      setStatus({
-        tone: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Failed to load spare inventory",
-      });
-    } finally {
-      setLoadingInventory(false);
-    }
-  }
-
   async function loadAllSpares() {
     try {
       const res = await fetch("/api/warehouse/spares");
@@ -219,7 +164,7 @@ export default function SparesInventory() {
   }
 
   useEffect(() => {
-    void Promise.all([loadModels(), loadInventory(), loadAllSpares()]);
+    void Promise.all([loadModels(), loadAllSpares()]);
   }, []);
 
   useEffect(() => {
@@ -254,7 +199,7 @@ export default function SparesInventory() {
         spareCode: data.spareCode,
         spares: [blankSpareSerial],
       });
-      await Promise.all([loadSpares(data.modelCode), loadInventory()]);
+      await Promise.all([loadSpares(data.modelCode), loadAllSpares()]);
     } catch (error) {
       setStatus({
         tone: "error",
@@ -302,7 +247,7 @@ export default function SparesInventory() {
         message: `Imported ${result.added} spare serial(s)${result.createdSpares ? ` (${result.createdSpares} new spare type${result.createdSpares > 1 ? 's' : ''})` : ''}. Skipped ${result.skipped || 0} unmatched/invalid row(s).`,
       });
       setImportFile(null);
-      await Promise.all([loadSpares(modelCode), loadInventory(), loadAllSpares()]);
+      await Promise.all([loadSpares(modelCode), loadAllSpares()]);
     } catch (error) {
       setStatus({
         tone: "error",
@@ -323,13 +268,19 @@ export default function SparesInventory() {
     [spareCode, spares]
   );
 
-  const visibleInventory = useMemo(() => {
-    return inventory.items.filter((item) => {
-      const matchesModel = modelCode ? item.model_code === modelCode : true;
-      const matchesSpare = spareCode ? item.spare_code === spareCode : true;
-      return matchesModel && matchesSpare;
-    });
-  }, [inventory.items, modelCode, spareCode]);
+  // Calculate summary stats
+  const summaryStats = useMemo(() => {
+    const totalArrived = allSpares.reduce((sum, s) => sum + (Number(s.arrived_quantity) || 0), 0);
+    const totalWarehouse = allSpares.reduce((sum, s) => sum + (Number(s.warehouse_quantity) || 0), 0);
+    const totalValue = allSpares.reduce((sum, s) => sum + (Number(s.price) || 0) * (Number(s.warehouse_quantity) || 0), 0);
+    
+    return {
+      totalArrived,
+      totalWarehouse,
+      totalSpareTypes: allSpares.length,
+      totalValue,
+    };
+  }, [allSpares]);
 
   return (
     <div className="min-h-full bg-slate-50 transition-colors dark:bg-[#080B14]">
@@ -344,8 +295,7 @@ export default function SparesInventory() {
                 Spare inventory
               </h1>
               <p className="max-w-3xl text-sm text-slate-600 dark:text-slate-400">
-                Keep the spare catalog organized by model, add serial-tracked
-                stock, and review every available unit from the admin workspace.
+                Add spare stock to inventory. View all spare inventory data in the Inventory Data page.
               </p>
             </div>
 
@@ -356,10 +306,10 @@ export default function SparesInventory() {
                 void Promise.all([
                   loadModels(),
                   modelCode ? loadSpares(modelCode) : Promise.resolve(),
-                  loadInventory(),
+                  loadAllSpares(),
                 ])
               }
-              disabled={loadingModels || loadingSpares || loadingInventory}
+              disabled={loadingModels || loadingSpares}
             >
               <RefreshCw className="size-4" />
               Refresh data
@@ -375,7 +325,7 @@ export default function SparesInventory() {
                 <div className="rounded-xl bg-sky-100 p-2.5 dark:bg-sky-500/20">
                   <PackagePlus className="size-6 text-sky-600 dark:text-sky-400" />
                 </div>
-                {formatNumber(allSpares.reduce((sum, s) => sum + (Number(s.arrived_quantity) || 0), 0))}
+                {formatNumber(summaryStats.totalArrived)}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -387,7 +337,7 @@ export default function SparesInventory() {
                 <div className="rounded-xl bg-green-100 p-2.5 dark:bg-green-500/20">
                   <Wrench className="size-6 text-green-600 dark:text-green-400" />
                 </div>
-                {formatNumber(allSpares.reduce((sum, s) => sum + (Number(s.warehouse_quantity) || 0), 0))}
+                {formatNumber(summaryStats.totalWarehouse)}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -399,19 +349,19 @@ export default function SparesInventory() {
                 <div className="rounded-xl bg-amber-100 p-2.5 dark:bg-amber-500/20">
                   <Wrench className="size-6 text-amber-600 dark:text-amber-400" />
                 </div>
-                {formatNumber(inventory.summary.totalSpareTypes)}
+                {formatNumber(summaryStats.totalSpareTypes)}
               </CardTitle>
             </CardHeader>
           </Card>
 
           <Card className="border-indigo-200/60 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(238,242,255,0.72))] shadow-sm backdrop-blur transition-all hover:shadow-md dark:border-white/5 dark:bg-[linear-gradient(180deg,rgba(30,41,59,0.8),rgba(15,23,42,0.9))]">
             <CardHeader className="p-6">
-              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Listed spare value</CardDescription>
+              <CardDescription className="font-semibold text-slate-500 dark:text-slate-400">Total spare value</CardDescription>
               <CardTitle className="mt-2 flex items-center gap-3 text-4xl font-bold text-slate-900 dark:text-white">
                 <div className="rounded-xl bg-indigo-100 p-2.5 dark:bg-indigo-500/20">
                   <CircleDollarSign className="size-6 text-indigo-600 dark:text-indigo-400" />
                 </div>
-                {formatNumber(inventory.summary.totalValue)}
+                {formatNumber(summaryStats.totalValue)}
               </CardTitle>
             </CardHeader>
           </Card>
@@ -736,84 +686,6 @@ export default function SparesInventory() {
             </CardContent>
           </Card>
         </div>
-
-        <Card className="border-slate-200 bg-white shadow-sm transition-all dark:border-white/10 dark:bg-slate-900/60">
-          <CardHeader>
-            <CardTitle className="dark:text-white">Spare unit details</CardTitle>
-            <CardDescription className="dark:text-slate-400">
-              {selectedSpare
-                ? `Showing serials for ${selectedSpare.spare_name}.`
-                : modelCode
-                  ? "Showing all spare serials for the selected model."
-                  : "Showing every spare serial currently in stock."}
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent>
-            {loadingInventory ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                Loading spare inventory...
-              </div>
-            ) : visibleInventory.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                No spare inventory found for the current selection.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-y-2 text-sm">
-                  <thead>
-                    <tr className="text-left text-slate-500 dark:text-slate-400">
-                      <th className="px-3 py-2 font-medium">Model</th>
-                      <th className="px-3 py-2 font-medium">Spare</th>
-                      <th className="px-3 py-2 font-medium">Serial</th>
-                      <th className="px-3 py-2 font-medium">Status</th>
-                      <th className="px-3 py-2 font-medium">Price</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibleInventory.map((item) => (
-                      <tr
-                        key={`${item.model_code}-${item.spare_code}-${item.serial_number}`}
-                        className="bg-slate-50 text-slate-700 transition hover:bg-slate-100 dark:bg-slate-800/40 dark:text-slate-300 dark:hover:bg-slate-800/70"
-                      >
-                        <td className="rounded-l-2xl px-3 py-3 align-top">
-                          <p className="font-semibold text-slate-900 dark:text-white">
-                            {item.model_name}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {item.model_code}
-                          </p>
-                        </td>
-
-                        <td className="px-3 py-3 align-top">
-                          <p className="font-semibold text-slate-900 dark:text-white">
-                            {item.spare_name}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-slate-400">
-                            {item.spare_code}
-                          </p>
-                        </td>
-
-                        <td className="px-3 py-3">
-                          {item.serial_number}
-                        </td>
-
-                        <td className="px-3 py-3">
-                          {item.status}
-                        </td>
-
-                        <td className="px-3 py-3 font-medium text-slate-900 dark:text-white">
-                          {formatNumber(item.price)}
-                        </td>
-
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
       </div>
 
       <SpareDialog

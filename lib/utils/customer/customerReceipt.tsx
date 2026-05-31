@@ -1,10 +1,14 @@
 import jsPDF from "jspdf";
-import QRCode from "qrcode";
 
 import {
   checkExistingSalesDocument,
   saveSalesDocumentReference,
+  type SalesPdfItem,
 } from "@/lib/utils/sales/pdf-helpers";
+import {
+  extractBikesFromSalesItems,
+  generateVehicleQrDataUrl,
+} from "@/lib/utils/sales/vehicle-qr";
 
 type CustomerReceiptData = {
   id?: string;
@@ -15,6 +19,7 @@ type CustomerReceiptData = {
   invoice_no?: string;
   amount_paid: number;
   balance_due: number;
+  items?: SalesPdfItem[];
   customer?: {
     first_name?: string;
     last_name?: string;
@@ -49,12 +54,14 @@ const generateCustomerReceiptPdf = async (
     }
   }
 
+  const bikeEntries = extractBikesFromSalesItems(receiptData.items, receiptData.created_at);
   let qrCodeSrc = "";
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://abs-sigma.vercel.app";
-    qrCodeSrc = await QRCode.toDataURL(`${baseUrl}/customer-receipt/${receiptData.id}`);
-  } catch (error) {
-    console.error(error);
+  if (bikeEntries.length > 0) {
+    try {
+      qrCodeSrc = await generateVehicleQrDataUrl(bikeEntries);
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   const logo = new Image();
@@ -163,7 +170,7 @@ const generateCustomerReceiptPdf = async (
     doc.addImage(qrCodeSrc, "PNG", 155, y + 5, 30, 30);
     doc.setFontSize(7);
     doc.setFont("helvetica", "italic");
-    doc.text("Scan to verify", 170, y + 37, { align: "center" });
+    doc.text("Scan for warranty", 170, y + 37, { align: "center" });
   }
 
   doc.setFillColor(248, 248, 248);

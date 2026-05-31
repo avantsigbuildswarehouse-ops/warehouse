@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import AppLoading from "@/components/feedback/app-loading";
 
 type VehicleStock = {
   id: string;
@@ -76,6 +77,10 @@ export default function DealerStockPage() {
     })),
   ].sort((a, b) => (a.date > b.date ? -1 : 1));
 
+  if (loading) {
+    return <AppLoading />;
+  }
+
   return (
     <div className="min-h-full bg-slate-50 dark:bg-[#080B14]">
       <div className="mx-auto max-w-7xl px-4 py-6 space-y-6">
@@ -97,17 +102,11 @@ export default function DealerStockPage() {
           </div>
         </div>
 
-        {loading && (
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Loading stock data...
-          </p>
-        )}
-
         {error && (
           <p className="text-sm text-red-500">{error}</p>
         )}
 
-        {!loading && !error && stockData && (
+        {!error && stockData ? (
           <>
             {/* STATS */}
             <div className="grid grid-cols-3 gap-4">
@@ -284,7 +283,7 @@ export default function DealerStockPage() {
               </CardContent>
             </Card>
           </>
-        )}
+        ) : null}
 
       </div>
     </div>

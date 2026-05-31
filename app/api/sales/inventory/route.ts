@@ -38,7 +38,7 @@ export async function GET(req: Request) {
       .eq(codeField, targetCode)
       .is("sold_at", null)
       .order("issued_at", { ascending: false })
-      .limit(2000),
+      .limit(200),
     supabaseAdmin
       .schema(schema)
       .from(spareTable)
@@ -46,7 +46,7 @@ export async function GET(req: Request) {
       .eq(codeField, targetCode)
       .is("sold_at", null)
       .order("issued_at", { ascending: false })
-      .limit(2000),
+      .limit(200),
   ]);
 
   if (vehicles.error) return NextResponse.json({ error: vehicles.error.message }, { status: 500 });

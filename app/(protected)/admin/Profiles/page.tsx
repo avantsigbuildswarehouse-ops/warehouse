@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Pencil, X, ShieldCheck, Loader2, CheckCircle2, Trash2, UserPlus } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import PaginationControls from "@/components/ui/pagination-controls";
+import AppLoading from "@/components/feedback/app-loading";
 import type { PartnerCodeOption, ProfileRecord } from "@/types/admin";
 
 type Profile = ProfileRecord;
@@ -322,6 +323,10 @@ export default function ProfilesPage() {
     }
 
     void handleConfirmUpdate();
+  }
+
+  if (loading && profiles.length === 0) {
+    return <AppLoading />;
   }
 
   return (

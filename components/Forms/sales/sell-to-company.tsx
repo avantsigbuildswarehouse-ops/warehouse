@@ -227,7 +227,7 @@ export default function SellToCompanyForm({ filterCategory }: SellToCompanyFormP
         qrRows.map(async (row) => ({
           id: row.inventoryId,
           label: `${row.engine_number || "-"} / ${row.chassis_number || "-"}`,
-          url: await QRCode.toDataURL(new URL(row.warranty_url, window.location.origin).toString()),
+          url: await QRCode.toDataURL(row.warranty_url),
         }))
       );
       setWarrantyQr(qrCodes);

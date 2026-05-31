@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Image from "next/image";
 import { useParams } from "next/navigation";
+import QRCode from "qrcode";
 import { CheckCircle2, Package, ShoppingCart, Truck, Wrench } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -54,6 +56,7 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [warrantyQr, setWarrantyQr] = useState<Array<{ id: string; label: string; url: string }>>([]);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -203,6 +206,20 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
       if (!response.ok) throw new Error(data.error || "Failed to submit sale");
 
       setSuccess(data.saleId);
+      const qrRows = (data.bikeWarrantyQr || []) as Array<{
+        inventoryId: string;
+        engine_number: string | null;
+        chassis_number: string | null;
+        warranty_url: string;
+      }>;
+      const qrCodes = await Promise.all(
+        qrRows.map(async (row) => ({
+          id: row.inventoryId,
+          label: `Vehicle ${row.engine_number || "-"} / ${row.chassis_number || "-"}`,
+          url: await QRCode.toDataURL(row.warranty_url),
+        }))
+      );
+      setWarrantyQr(qrCodes);
       setSelectedBikeIds(new Set());
       setCartSpares(new Set());
       setIsBasePriceManuallyEdited(false);
@@ -242,6 +259,19 @@ export default function SellToCustomerForm({ filterCategory }: SellToCustomerFor
             </CardTitle>
             <CardDescription className="text-emerald-700 dark:text-emerald-300">Sale ID: {success}</CardDescription>
           </CardHeader>
+          {warrantyQr.length > 0 && (
+            <CardContent>
+              <p className="mb-3 text-sm font-semibold text-slate-900 dark:text-white">Warranty QR (bikes only)</p>
+              <div className="flex flex-wrap gap-4">
+                {warrantyQr.map((qr) => (
+                  <div key={qr.id} className="rounded-lg border border-slate-200 p-3 dark:border-white/10">
+                    <p className="mb-2 text-xs text-slate-600 dark:text-slate-300">{qr.label}</p>
+                    <Image src={qr.url} alt={`Warranty QR ${qr.label}`} width={144} height={144} className="h-36 w-36 rounded bg-white p-1" />
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          )}
         </Card>
       )}
 

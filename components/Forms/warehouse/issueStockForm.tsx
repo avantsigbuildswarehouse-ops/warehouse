@@ -557,7 +557,10 @@ export default function IssueStockForm() {
 
         {loading ? (
           <Card className="border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900/60">
-            <CardContent className="pt-6 text-sm text-slate-600 dark:text-slate-300">Loading request queue...</CardContent>
+            <CardContent className="flex items-center justify-center gap-2 py-12 text-sm text-slate-600 dark:text-slate-300">
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Loading request queue...
+            </CardContent>
           </Card>
         ) : activeRequests.length === 0 ? (
           <Card className="border-slate-200 bg-white shadow-sm dark:border-white/10 dark:bg-slate-900/60">

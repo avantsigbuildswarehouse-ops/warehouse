@@ -1,5 +1,4 @@
 import jsPDF from "jspdf";
-import QRCode from "qrcode";
 
 interface DealerReceiptData {
   id?: string;
@@ -31,16 +30,6 @@ const generateDealerReceiptPdf = async (receiptData: DealerReceiptData, returnPd
     } catch (error) {
       console.error("Error checking existing document:", error);
     }
-  }
-
-  // QR Code
-  let qrCodeSrc = "";
-  try {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "https://abs-sigma.vercel.app";
-    const qrData = `${baseUrl}/dealer-receipt/${receiptData.id}`;
-    qrCodeSrc = await QRCode.toDataURL(qrData);
-  } catch (error) {
-    console.error(error);
   }
 
   // Load logo
@@ -155,18 +144,6 @@ const generateDealerReceiptPdf = async (receiptData: DealerReceiptData, returnPd
   });
 
   y += 8;
-
-  // QR Code Section
-  if (qrCodeSrc) {
-    doc.setDrawColor(200, 200, 200);
-    doc.rect(150, y, 40, 40);
-    doc.addImage(qrCodeSrc, "PNG", 155, y + 5, 30, 30);
-    doc.setFontSize(7);
-    doc.setFont("helvetica", "italic");
-    doc.setTextColor(100, 100, 100);
-    doc.text("Scan to verify", 170, y + 45, { align: "center" });
-    doc.setTextColor(0, 0, 0);
-  }
 
   // Thank You Note
   doc.setFillColor(248, 248, 248);

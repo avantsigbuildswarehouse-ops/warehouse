@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase/admin";
 import { requireSalesRoute } from "@/lib/auth/require-sales-route";
+import { buildBikeWarrantyQrResponse } from "@/lib/utils/sales/vehicle-qr";
 
 type SaleItem = { type: "Bike" | "Spare"; id: string };
 const supabaseAdmin = getSupabaseAdmin();
@@ -169,7 +170,12 @@ export async function POST(req: Request) {
     if (upBikes.error) return NextResponse.json({ error: upBikes.error.message }, { status: 500 });
     if (upSpares.error) return NextResponse.json({ error: upSpares.error.message }, { status: 500 });
 
-    return NextResponse.json({ success: true, saleId: sale.id});
+    const bikeWarrantyQr = buildBikeWarrantyQrResponse(
+      (bikeRows.data || []) as Array<{ id: string; engine_number: string; chassis_number: string }>,
+      soldAt
+    );
+
+    return NextResponse.json({ success: true, saleId: sale.id, bikeWarrantyQr });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : "Invalid request";
     return NextResponse.json({ error: message }, { status: 400 });

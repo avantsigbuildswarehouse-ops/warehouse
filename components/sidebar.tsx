@@ -21,6 +21,7 @@ import {
   Receipt,
   FileText,
   CircleDollarSign,
+  LibraryBig,
 } from "lucide-react";
 
 import LogoutButton from "./logout-button";
@@ -50,11 +51,13 @@ function getNavItems(role: string, code: string): NavItem[] {
       { href: "/admin/Profiles", label: "Profiles", icon: Users },
       { href: "/admin/Inventory", label: "Vehicle Inventory", icon: Archive },
       { href: "/admin/Spares", label: "Spare Inventory", icon: Wrench },
+      { href: "/admin/InventoryDetails", label: "Inventory Details", icon: LibraryBig },
       { href: "/admin/PriceManagement", label: "Prices & Codes", icon: CircleDollarSign },
       { href: "/admin/Showroom", label: "Showrooms", icon: Building },
       { href: "/admin/Dealers", label: "Dealers", icon: Building2 },
       { href: "/admin/IssueStock", label: "Issue Inventory", icon: PackageOpen },
       { href: "/admin/IssuedHistory", label: "Issued History", icon: History },
+      { href: "/admin/Reports", label: "Reports", icon: FileText },
     ];
   }
 
