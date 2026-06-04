@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { CatalogImageField } from "@/components/admin/catalog-image-field";
 
 type VehicleModel = {
   model_code: string;
@@ -16,6 +17,7 @@ type VehicleModel = {
   price: number | string | null;
   arrived_quantity: number | null;
   warehouse_quantity: number | null;
+  image_url: string | null;
 };
 
 type SpareCode = {
@@ -25,6 +27,7 @@ type SpareCode = {
   price: number | string | null;
   arrived_quantity: number | null;
   warehouse_quantity: number | null;
+  image_url: string | null;
 };
 
 type DeleteTarget =
@@ -114,6 +117,24 @@ export default function PriceManagement() {
       ),
     [spares]
   );
+
+  function updateModelImage(modelCode: string, imageUrl: string) {
+    setModels((current) =>
+      current.map((model) =>
+        model.model_code === modelCode ? { ...model, image_url: imageUrl } : model
+      )
+    );
+  }
+
+  function updateSpareImage(modelCode: string, spareCode: string, imageUrl: string) {
+    setSpares((current) =>
+      current.map((spare) =>
+        spare.model_code === modelCode && spare.spare_code === spareCode
+          ? { ...spare, image_url: imageUrl }
+          : spare
+      )
+    );
+  }
 
   const updateVehiclePrice = async (model: VehicleModel) => {
     const price = Number(vehiclePrices[model.model_code]);
@@ -277,7 +298,13 @@ export default function PriceManagement() {
                           {model.model_code} - Warehouse Qty: {model.warehouse_quantity ?? 0}
                         </span>
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+                      <CatalogImageField
+                        kind="vehicle"
+                        modelCode={model.model_code}
+                        imageUrl={model.image_url}
+                        onUploaded={(url) => updateModelImage(model.model_code, url)}
+                      />
+                      <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
                         <div className="space-y-1.5">
                           <Label>Price</Label>
                           <Input
@@ -341,7 +368,14 @@ export default function PriceManagement() {
                           {spare.spare_code} - Model: {spare.model_code} - Warehouse Qty: {spare.warehouse_quantity ?? 0}
                         </span>
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
+                      <CatalogImageField
+                        kind="spare"
+                        modelCode={spare.model_code}
+                        spareCode={spare.spare_code}
+                        imageUrl={spare.image_url}
+                        onUploaded={(url) => updateSpareImage(spare.model_code, spare.spare_code, url)}
+                      />
+                      <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto_auto] sm:items-end">
                         <div className="space-y-1.5">
                           <Label>Price</Label>
                           <Input

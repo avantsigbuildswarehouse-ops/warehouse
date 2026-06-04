@@ -24,6 +24,7 @@ type VehicleModelRow = {
   price: number | string | null;
   arrived_quantity: number | null;
   warehouse_quantity: number | null;
+  image_url: string | null;
 };
 
 type SpareInventoryRow = {
@@ -40,6 +41,7 @@ type SpareCodeRow = {
   price: number | string | null;
   arrived_quantity: number | null;
   warehouse_quantity: number | null;
+  image_url: string | null;
 };
 
 function toNumber(value: number | string | null | undefined) {
@@ -52,7 +54,7 @@ export const getVehicleModels = cache(async function getVehicleModels() {
   const { data, error } = await supabaseAdmin
     .schema("warehouse")
     .from("vehicle_model_codes")
-    .select("model_code, model_name, price, arrived_quantity, warehouse_quantity")
+    .select("model_code, model_name, price, arrived_quantity, warehouse_quantity, image_url")
     .order("model_name");
 
   if (error) {
@@ -115,7 +117,7 @@ export const getSpareCodes = cache(async function getSpareCodes(modelCode?: stri
   let query = supabaseAdmin
     .schema("warehouse")
     .from("vehicle_spare_codes")
-    .select("model_code, spare_code, spare_name, price, arrived_quantity, warehouse_quantity")
+    .select("model_code, spare_code, spare_name, price, arrived_quantity, warehouse_quantity, image_url")
     .order("spare_name");
 
   if (modelCode) {

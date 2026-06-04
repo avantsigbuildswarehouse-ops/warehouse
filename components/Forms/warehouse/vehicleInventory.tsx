@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useMemo, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,6 +30,7 @@ type VehicleModel = {
   price: number | string | null;
   arrived_quantity: number | null;
   warehouse_quantity: number | null;
+  image_url?: string | null;
 };
 
 type StatusState =
@@ -340,7 +342,20 @@ export default function VehicleInventoryForm() {
                 </div>
 
                 {selectedModelData ? (
-                  <div className="grid gap-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 md:grid-cols-4 dark:border-white/10 dark:bg-slate-800/40">
+                  <div className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-white/10 dark:bg-slate-800/40">
+                    {selectedModelData.image_url ? (
+                      <div className="overflow-hidden rounded-xl border border-slate-200 dark:border-white/10">
+                        <Image
+                          src={selectedModelData.image_url}
+                          alt={selectedModelData.model_name}
+                          width={640}
+                          height={240}
+                          className="h-40 w-full object-cover"
+                          unoptimized
+                        />
+                      </div>
+                    ) : null}
+                  <div className="grid gap-3 md:grid-cols-4">
                     <div>
                       <p className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">
                         Model code
@@ -373,6 +388,7 @@ export default function VehicleInventoryForm() {
                         {formatNumber(Number(selectedModelData.warehouse_quantity ?? 0))}
                       </p>
                     </div>
+                  </div>
                   </div>
                 ) : null}
 
@@ -600,7 +616,17 @@ export default function VehicleInventoryForm() {
                     key={model.model_code}
                     className="rounded-2xl border border-slate-200 p-4 dark:border-white/10 dark:bg-slate-800/30"
                   >
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      {model.image_url ? (
+                        <Image
+                          src={model.image_url}
+                          alt={model.model_name}
+                          width={64}
+                          height={64}
+                          className="h-16 w-16 shrink-0 rounded-lg object-cover"
+                          unoptimized
+                        />
+                      ) : null}
                       <div>
                         <p className="font-semibold text-slate-950 dark:text-white">
                           {model.model_name}
