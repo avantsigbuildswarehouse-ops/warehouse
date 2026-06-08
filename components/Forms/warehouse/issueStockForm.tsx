@@ -9,14 +9,17 @@ import {
   Loader2,
   PauseCircle,
   RefreshCw,
+  Search,
   Send,
   Truck,
+  X,
   XCircle,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 
@@ -114,6 +117,8 @@ export default function IssueStockForm() {
   const [dispatchTargetCode, setDispatchTargetCode] = useState("");
   const [dispatchItemType, setDispatchItemType] = useState<DispatchItemType>("Bike");
   const [selectedItems, setSelectedItems] = useState<string[]>([]);
+  const [dispatchSearch, setDispatchSearch] = useState("");
+  const [dispatchModelFilter, setDispatchModelFilter] = useState("");
   const [dispatchLoading, setDispatchLoading] = useState(true);
   const [dispatching, setDispatching] = useState(false);
 
@@ -173,6 +178,8 @@ export default function IssueStockForm() {
 
   useEffect(() => {
     setSelectedItems([]);
+    setDispatchSearch("");
+    setDispatchModelFilter("");
   }, [dispatchItemType]);
 
   const activeRequests = useMemo(
@@ -182,6 +189,67 @@ export default function IssueStockForm() {
 
   const dispatchTargets = dispatchTargetKind === "showroom" ? showrooms : dealers;
   const dispatchItems = dispatchItemType === "Bike" ? availableBikes : availableSpares;
+
+  const dispatchModelOptions = useMemo(() => {
+    if (dispatchItemType === "Bike") {
+      const byCode = new Map<string, string>();
+      for (const bike of availableBikes) {
+        if (!byCode.has(bike.model_code)) {
+          byCode.set(bike.model_code, bike.model_name || bike.model_code);
+        }
+      }
+      return Array.from(byCode.entries())
+        .map(([code, label]) => ({ code, label }))
+        .sort((a, b) => a.label.localeCompare(b.label));
+    }
+
+    const codes = new Set(availableSpares.map((spare) => spare.model_code));
+    return Array.from(codes)
+      .sort((a, b) => a.localeCompare(b))
+      .map((code) => ({ code, label: code }));
+  }, [availableBikes, availableSpares, dispatchItemType]);
+
+  const filteredDispatchItems = useMemo(() => {
+    const query = dispatchSearch.trim().toLowerCase();
+
+    if (dispatchItemType === "Bike") {
+      return availableBikes.filter((bike) => {
+        if (dispatchModelFilter && bike.model_code !== dispatchModelFilter) return false;
+        if (!query) return true;
+        return [
+          bike.engine_number,
+          bike.chassis_number,
+          bike.model_code,
+          bike.model_name,
+          bike.color,
+        ]
+          .filter(Boolean)
+          .some((value) => String(value).toLowerCase().includes(query));
+      });
+    }
+
+    return availableSpares.filter((spare) => {
+      if (dispatchModelFilter && spare.model_code !== dispatchModelFilter) return false;
+      if (!query) return true;
+      return [
+        spare.serial_number,
+        spare.model_code,
+        spare.spare_code,
+        spare.spare_name,
+      ]
+        .filter(Boolean)
+        .some((value) => String(value).toLowerCase().includes(query));
+    });
+  }, [
+    availableBikes,
+    availableSpares,
+    dispatchItemType,
+    dispatchModelFilter,
+    dispatchSearch,
+  ]);
+
+  const hasDispatchFilters = Boolean(dispatchSearch.trim() || dispatchModelFilter);
+
   const selectedDispatchItems = useMemo(() => {
     const selected = new Set(selectedItems);
     return dispatchItemType === "Bike"
@@ -490,12 +558,55 @@ export default function IssueStockForm() {
                     Available {dispatchItemType === "Bike" ? "Vehicles" : "Spares"}
                   </p>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Selected {selectedItems.length} item(s), total Rs {selectedDispatchValue.toLocaleString()}
+                    Showing {filteredDispatchItems.length} of {dispatchItems.length} • Selected {selectedItems.length} item(s), total Rs {selectedDispatchValue.toLocaleString()}
                   </p>
                 </div>
                 <Button variant="outline" size="sm" onClick={() => setSelectedItems([])} disabled={selectedItems.length === 0}>
                   Clear selection
                 </Button>
+              </div>
+
+              <div className="mb-4 grid gap-3 md:grid-cols-[1fr_220px_auto]">
+                <div className="relative">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+                  <Input
+                    value={dispatchSearch}
+                    onChange={(event) => setDispatchSearch(event.target.value)}
+                    placeholder={
+                      dispatchItemType === "Bike"
+                        ? "Search engine, chassis, model..."
+                        : "Search serial, spare code, bike model..."
+                    }
+                    className="pl-9 dark:border-white/10 dark:bg-slate-950/60"
+                  />
+                </div>
+                <select
+                  value={dispatchModelFilter}
+                  onChange={(event) => setDispatchModelFilter(event.target.value)}
+                  className="h-10 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-900 dark:border-white/10 dark:bg-slate-950 dark:text-white"
+                >
+                  <option value="">All bike models</option>
+                  {dispatchModelOptions.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.label === option.code ? option.code : `${option.label} (${option.code})`}
+                    </option>
+                  ))}
+                </select>
+                {hasDispatchFilters ? (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDispatchSearch("");
+                      setDispatchModelFilter("");
+                    }}
+                  >
+                    <X className="mr-1 size-4" />
+                    Reset
+                  </Button>
+                ) : (
+                  <div />
+                )}
               </div>
 
               {dispatchLoading ? (
@@ -504,10 +615,14 @@ export default function IssueStockForm() {
                 <p className="text-sm text-slate-500 dark:text-slate-400">
                   No available {dispatchItemType === "Bike" ? "vehicles" : "spares"} found.
                 </p>
+              ) : filteredDispatchItems.length === 0 ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400">
+                  No matches for your search or model filter.
+                </p>
               ) : (
                 <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
                   {dispatchItemType === "Bike"
-                    ? (dispatchItems as AvailableBike[]).map((bike) => (
+                    ? (filteredDispatchItems as AvailableBike[]).map((bike) => (
                         <label
                           key={bike.engine_number}
                           className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 text-sm transition-colors hover:bg-slate-50 dark:border-white/10 dark:hover:bg-slate-800/60"
@@ -528,7 +643,7 @@ export default function IssueStockForm() {
                           </span>
                         </label>
                       ))
-                    : (dispatchItems as AvailableSpare[]).map((spare) => (
+                    : (filteredDispatchItems as AvailableSpare[]).map((spare) => (
                         <label
                           key={spare.serial_number}
                           className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 text-sm transition-colors hover:bg-slate-50 dark:border-white/10 dark:hover:bg-slate-800/60"
